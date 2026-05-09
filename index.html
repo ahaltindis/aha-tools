@@ -144,7 +144,7 @@ body {
 .pl-item.sel { border-color: var(--accent) !important; background: rgba(102,126,234,.08); }
 .pl-dot { width: 9px; height: 9px; border-radius: 2px; flex-shrink: 0; }
 .pl-info { flex: 1; min-width: 0; }
-.pl-name { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pl-name { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: text; }
 .pl-size { color: var(--muted); font-size: 10px; }
 .pl-rm {
   color: #ff4455;
@@ -234,6 +234,21 @@ kbd {
 /* divider */
 hr { border: none; border-top: 1px solid var(--border); }
 
+/* inline rename input inside placed list */
+.pl-rename-inp {
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--accent);
+  color: var(--text);
+  font-size: 11px;
+  font-weight: 600;
+  font-family: inherit;
+  width: 100%;
+  outline: none;
+  padding: 0;
+  caret-color: var(--accent);
+}
+
 /* custom name input */
 .txt-inp {
   width: 100%;
@@ -306,6 +321,7 @@ hr { border: none; border-top: 1px solid var(--border); }
       <kbd>↑↓←→</kbd> nudge 10 cm<br>
       <kbd>Shift ↑↓</kbd> move up / down<br>
       <kbd>Del</kbd> remove selected<br>
+      <kbd>N</kbd> rename selected<br>
       <kbd>Esc</kbd> deselect<br>
       <kbd>RMB drag</kbd> orbit camera<br>
       <kbd>Scroll</kbd> zoom<br>
@@ -609,19 +625,24 @@ function select(obj) {
   if (selObj) {
     selObj.mesh.material.emissive.set(0x000000);
     selObj.mesh.material.emissiveIntensity = 0;
+    // Toggle .sel class without rebuilding the list
+    const prevItem = document.querySelector('#placed-list .pl-item.sel');
+    if (prevItem) prevItem.classList.remove('sel');
   }
   selObj = obj;
   if (obj) {
     obj.mesh.material.emissive.set(0x8899ff);
     obj.mesh.material.emissiveIntensity = 0.4;
-    const bar = document.getElementById('selbar');
-    bar.style.display = 'block';
+    document.getElementById('selbar').style.display = 'block';
     document.getElementById('sel-name').textContent =
       `${obj.name}  ${obj.w} × ${obj.h} × ${obj.d} m`;
+    const idx = placed.indexOf(obj);
+    const item = document.querySelector(`#placed-list [data-idx="${idx}"]`);
+    if (item) item.classList.add('sel');
   } else {
     document.getElementById('selbar').style.display = 'none';
   }
-  refreshPlacedList();
+  // No refreshPlacedList() here — list DOM stays intact so dblclick works
 }
 
 // ── Clamping to container ──
@@ -744,6 +765,14 @@ document.addEventListener('keydown', e => {
       removeObj(obj);
       break;
 
+    case 'n': case 'N': {
+      e.preventDefault(); // stop 'n' being typed into the input after focus shifts
+      const nameEl = document.querySelectorAll('.pl-item')[placed.indexOf(obj)]
+        ?.querySelector('.pl-name');
+      if (nameEl) startRename(obj, nameEl);
+      return; // skip the refreshPlacedList() below — it would destroy the input
+    }
+
     case 'ArrowLeft':
       e.preventDefault();
       obj.mesh.position.x -= step;
@@ -772,6 +801,33 @@ document.addEventListener('keydown', e => {
   }
   refreshPlacedList();
 });
+
+function startRename(obj, nameEl) {
+  const prev = obj.name;
+  const inp = document.createElement('input');
+  inp.type = 'text';
+  inp.value = prev;
+  inp.className = 'pl-rename-inp';
+  nameEl.replaceWith(inp);
+  inp.focus();
+  inp.select();
+
+  function commit() {
+    obj.name = inp.value.trim() || prev;
+    if (selObj === obj) {
+      document.getElementById('sel-name').textContent =
+        `${obj.name}  ${obj.w} × ${obj.h} × ${obj.d} m`;
+    }
+    refreshPlacedList();
+  }
+
+  inp.addEventListener('blur', commit);
+  inp.addEventListener('keydown', e => {
+    e.stopPropagation(); // prevent scene keyboard shortcuts while typing
+    if (e.key === 'Enter')  inp.blur();
+    if (e.key === 'Escape') { obj.name = prev; inp.removeEventListener('blur', commit); inp.blur(); refreshPlacedList(); }
+  });
+}
 
 function rotateObj(obj) {
   [obj.w, obj.d] = [obj.d, obj.w];
@@ -852,24 +908,17 @@ function refreshPlacedList() {
   }
 
   list.innerHTML = '';
-  placed.forEach(obj => {
-    const el  = document.createElement('div');
+  placed.forEach((obj, idx) => {
+    const el = document.createElement('div');
     el.className = 'pl-item' + (obj === selObj ? ' sel' : '');
-
-    const pos = obj.mesh.position;
+    el.dataset.idx = idx;
     el.innerHTML = `
       <div class="pl-dot" style="background:${hex(obj.color)}"></div>
       <div class="pl-info">
-        <div class="pl-name">${obj.name}</div>
+        <div class="pl-name" title="Double-click to rename">${obj.name}</div>
         <div class="pl-size">${obj.w}×${obj.h}×${obj.d} m &nbsp;·&nbsp; ${obj.vol.toFixed(2)} m³</div>
       </div>
       <div class="pl-rm" title="Remove">×</div>`;
-
-    el.querySelector('.pl-rm').addEventListener('click', ev => {
-      ev.stopPropagation();
-      removeObj(obj);
-    });
-    el.addEventListener('click', () => select(obj));
     list.appendChild(el);
   });
 }
@@ -933,6 +982,33 @@ window.addEventListener('resize', () => {
 
 buildContainer();
 buildFurniturePanel();
+
+// ── Delegated events for placed list (survives innerHTML rebuilds) ──
+const placedListEl = document.getElementById('placed-list');
+
+placedListEl.addEventListener('click', e => {
+  const item = e.target.closest('[data-idx]');
+  if (!item) return;
+  const idx = +item.dataset.idx;
+  if (e.target.closest('.pl-rm')) {
+    removeObj(placed[idx]);
+  } else {
+    select(placed[idx]);
+  }
+});
+
+placedListEl.addEventListener('dblclick', e => {
+  const nameEl = e.target.closest('.pl-name');
+  if (!nameEl) return;
+  const item = nameEl.closest('[data-idx]');
+  if (!item) return;
+  const idx = +item.dataset.idx;
+  const obj = placed[idx];
+  if (!obj) return;
+  // Re-query from live DOM: the preceding click events rebuilt the list
+  const liveNameEl = placedListEl.querySelector(`[data-idx="${idx}"] .pl-name`);
+  if (liveNameEl) startRename(obj, liveNameEl);
+});
 
 </script>
 </body>
