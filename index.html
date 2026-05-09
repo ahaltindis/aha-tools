@@ -1,0 +1,939 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Volume Fit Planner</title>
+<style>
+:root {
+  --bg:      #0d0d1a;
+  --panel:   #13132a;
+  --card:    #1a1a35;
+  --border:  #1e2d52;
+  --accent:  #667eea;
+  --accent2: #764ba2;
+  --text:    #dde0f0;
+  --muted:   #5a6a8a;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body {
+  font-family: 'Segoe UI', system-ui, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  display: flex;
+  height: 100vh;
+  overflow: hidden;
+  font-size: 13px;
+}
+
+/* ── Panels ── */
+.panel {
+  background: var(--panel);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 14px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+  flex-shrink: 0;
+}
+#left  { width: 200px; border-right: 1px solid var(--border); }
+#right { width: 215px; border-left:  1px solid var(--border); }
+
+.sec-title {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1.3px;
+  color: var(--accent);
+  margin-bottom: 6px;
+}
+
+/* ── Volume card ── */
+.vol-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  padding: 12px;
+  text-align: center;
+}
+.vol-num {
+  font-size: 34px;
+  font-weight: 800;
+  color: var(--accent);
+  line-height: 1;
+}
+.vol-sub { font-size: 11px; color: var(--muted); margin-top: 3px; }
+.prog-track {
+  background: #080d1a;
+  border-radius: 4px;
+  height: 7px;
+  margin: 9px 0 6px;
+  overflow: hidden;
+}
+.prog-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent), var(--accent2));
+  border-radius: 4px;
+  transition: width .25s ease;
+  width: 0%;
+}
+.vol-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: var(--muted);
+}
+.vol-row b { color: var(--text); font-weight: 600; }
+
+/* ── Dim rows ── */
+.dim-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 5px;
+}
+.dim-lbl { font-size: 11px; color: var(--muted); font-weight: 700; width: 14px; }
+.dim-inp {
+  flex: 1;
+  background: #080d1a;
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 5px 7px;
+  border-radius: 5px;
+  font-size: 13px;
+  outline: none;
+  font-family: inherit;
+}
+.dim-inp:focus { border-color: var(--accent); }
+.dim-unit { font-size: 10px; color: var(--muted); }
+
+/* ── Buttons ── */
+.btn {
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  padding: 7px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 700;
+  width: 100%;
+  transition: background .15s;
+  font-family: inherit;
+  margin-top: 2px;
+}
+.btn:hover { background: var(--accent2); }
+
+/* ── Placed list ── */
+#placed-list { display: flex; flex-direction: column; gap: 4px; }
+.pl-item {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 11px;
+  padding: 5px 7px;
+  border-radius: 5px;
+  background: #080d1a;
+  cursor: pointer;
+  border: 1px solid transparent;
+}
+.pl-item:hover { border-color: var(--border); }
+.pl-item.sel { border-color: var(--accent) !important; background: rgba(102,126,234,.08); }
+.pl-dot { width: 9px; height: 9px; border-radius: 2px; flex-shrink: 0; }
+.pl-info { flex: 1; min-width: 0; }
+.pl-name { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pl-size { color: var(--muted); font-size: 10px; }
+.pl-rm {
+  color: #ff4455;
+  cursor: pointer;
+  font-size: 16px;
+  line-height: 1;
+  padding: 0 2px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+.pl-rm:hover { background: rgba(255,68,85,.2); }
+
+/* ── Controls help ── */
+.help { font-size: 11px; color: var(--muted); line-height: 2; }
+kbd {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: 1px 4px;
+  font-family: monospace;
+  font-size: 10px;
+  color: var(--accent);
+}
+
+/* ── Furniture items ── */
+.fur-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 9px;
+  background: #080d1a;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all .12s;
+  margin-bottom: 4px;
+}
+.fur-item:hover { border-color: var(--accent); background: rgba(102,126,234,.09); }
+.fur-dot { width: 11px; height: 11px; border-radius: 2px; flex-shrink: 0; }
+.fur-info { flex: 1; min-width: 0; }
+.fur-name { font-size: 12px; font-weight: 600; }
+.fur-dims { font-size: 10px; color: var(--muted); }
+.fur-vol  { font-size: 10px; color: var(--accent); }
+
+/* ── Canvas ── */
+#canvas-wrap {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+}
+#canvas-wrap canvas { display: block; }
+
+/* ── Overlays ── */
+.ov {
+  position: absolute;
+  border-radius: 20px;
+  font-size: 11px;
+  pointer-events: none;
+  white-space: nowrap;
+  backdrop-filter: blur(4px);
+  border: 1px solid var(--border);
+}
+#hint {
+  bottom: 14px; left: 50%; transform: translateX(-50%);
+  background: rgba(10,12,28,.85);
+  padding: 7px 16px;
+  color: var(--muted);
+}
+#selbar {
+  top: 14px; left: 50%; transform: translateX(-50%);
+  background: rgba(102,126,234,.93);
+  padding: 7px 18px;
+  color: #fff;
+  font-weight: 600;
+  display: none;
+  border-color: transparent;
+}
+#warnbar {
+  top: 56px; left: 50%; transform: translateX(-50%);
+  background: rgba(220,50,50,.92);
+  padding: 6px 14px;
+  color: #fff;
+  display: none;
+  border-color: transparent;
+}
+
+/* divider */
+hr { border: none; border-top: 1px solid var(--border); }
+
+/* custom name input */
+.txt-inp {
+  width: 100%;
+  background: #080d1a;
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 5px 8px;
+  border-radius: 5px;
+  font-size: 12px;
+  outline: none;
+  margin-bottom: 6px;
+  font-family: inherit;
+}
+.txt-inp:focus { border-color: var(--accent); }
+</style>
+</head>
+<body>
+
+<!-- ════════════════ LEFT PANEL ════════════════ -->
+<div class="panel" id="left">
+
+  <div>
+    <div class="sec-title">Volume</div>
+    <div class="vol-card">
+      <div class="vol-num" id="vol-total">6.0</div>
+      <div class="vol-sub">m³ container</div>
+      <div class="prog-track"><div class="prog-fill" id="prog"></div></div>
+      <div class="vol-row">
+        Used: <b id="vol-used">0.00</b> m³ &nbsp; <b id="vol-pct">0%</b>
+      </div>
+    </div>
+  </div>
+
+  <div>
+    <div class="sec-title">Container Size</div>
+    <div class="dim-row">
+      <span class="dim-lbl">W</span>
+      <input type="number" class="dim-inp" id="cw" value="2" step="0.1" min="0.5">
+      <span class="dim-unit">m</span>
+    </div>
+    <div class="dim-row">
+      <span class="dim-lbl">H</span>
+      <input type="number" class="dim-inp" id="ch" value="1" step="0.1" min="0.5">
+      <span class="dim-unit">m</span>
+    </div>
+    <div class="dim-row">
+      <span class="dim-lbl">D</span>
+      <input type="number" class="dim-inp" id="cd" value="3" step="0.1" min="0.5">
+      <span class="dim-unit">m</span>
+    </div>
+    <button class="btn" id="btn-update-container">Update Container</button>
+  </div>
+
+  <hr>
+
+  <div>
+    <div class="sec-title">Placed Items (<span id="pl-count">0</span>)</div>
+    <div id="placed-list">
+      <div style="color:var(--muted);font-size:11px;font-style:italic">
+        Click items in the library →
+      </div>
+    </div>
+  </div>
+
+  <div style="margin-top:auto">
+    <div class="sec-title">Controls</div>
+    <div class="help">
+      <kbd>LMB drag</kbd> move object<br>
+      <kbd>R</kbd> rotate 90°<br>
+      <kbd>↑↓←→</kbd> nudge 10 cm<br>
+      <kbd>Shift ↑↓</kbd> move up / down<br>
+      <kbd>Del</kbd> remove selected<br>
+      <kbd>Esc</kbd> deselect<br>
+      <kbd>RMB drag</kbd> orbit camera<br>
+      <kbd>Scroll</kbd> zoom<br>
+    </div>
+  </div>
+
+</div>
+
+<!-- ════════════════ CANVAS ════════════════ -->
+<div id="canvas-wrap">
+  <div class="ov" id="selbar">▸ <span id="sel-name"></span></div>
+  <div class="ov" id="hint">Right-drag to orbit · Scroll to zoom · Click an object to select it</div>
+  <div class="ov" id="warnbar">⚠ Objects are overlapping!</div>
+</div>
+
+<!-- ════════════════ RIGHT PANEL ════════════════ -->
+<div class="panel" id="right">
+  <div class="sec-title">Furniture Library</div>
+  <div id="fur-list"></div>
+
+  <hr>
+
+  <div>
+    <div class="sec-title">Custom Object</div>
+    <input type="text"   class="txt-inp" id="custom-name" placeholder="Name (e.g. Piano)">
+    <div class="dim-row">
+      <span class="dim-lbl">W</span>
+      <input type="number" class="dim-inp" id="cust-w" value="1.0" step="0.1" min="0.1">
+      <span class="dim-unit">m</span>
+    </div>
+    <div class="dim-row">
+      <span class="dim-lbl">H</span>
+      <input type="number" class="dim-inp" id="cust-h" value="0.5" step="0.1" min="0.1">
+      <span class="dim-unit">m</span>
+    </div>
+    <div class="dim-row">
+      <span class="dim-lbl">D</span>
+      <input type="number" class="dim-inp" id="cust-d" value="1.0" step="0.1" min="0.1">
+      <span class="dim-unit">m</span>
+    </div>
+    <button class="btn" id="btn-add-custom">+ Add Custom Object</button>
+  </div>
+</div>
+
+<!-- ════════════════ THREE.JS ════════════════ -->
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+// ═══════════════════════════════════════════════════════════
+// SCENE
+// ═══════════════════════════════════════════════════════════
+
+const wrap = document.getElementById('canvas-wrap');
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x0a0a18);
+scene.fog = new THREE.FogExp2(0x0a0a18, 0.035);
+
+const camera = new THREE.PerspectiveCamera(55, wrap.clientWidth / wrap.clientHeight, 0.01, 200);
+camera.position.set(5, 4, 6);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.setSize(wrap.clientWidth, wrap.clientHeight);
+wrap.appendChild(renderer.domElement);
+
+// ── OrbitControls: right-drag = orbit, scroll = zoom, left = ours ──
+const orbit = new OrbitControls(camera, renderer.domElement);
+orbit.mouseButtons = { LEFT: null, MIDDLE: THREE.MOUSE.DOLLY, RIGHT: THREE.MOUSE.ROTATE };
+orbit.enablePan = false;
+orbit.minDistance = 0.5;
+orbit.maxDistance = 40;
+orbit.target.set(0, 0.5, 0);
+orbit.update();
+
+// ── Lights ──
+scene.add(new THREE.HemisphereLight(0x334466, 0x111122, 0.9));
+
+const sun = new THREE.DirectionalLight(0xffeedd, 1.3);
+sun.position.set(6, 12, 8);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+Object.assign(sun.shadow.camera, { near: 0.1, far: 60, left: -10, right: 10, top: 10, bottom: -10 });
+scene.add(sun);
+
+const fill = new THREE.DirectionalLight(0x334488, 0.4);
+fill.position.set(-5, 3, -6);
+scene.add(fill);
+
+// ── World grid ──
+scene.add(new THREE.GridHelper(40, 80, 0x111a30, 0x0a1020));
+
+// ═══════════════════════════════════════════════════════════
+// CONTAINER
+// ═══════════════════════════════════════════════════════════
+
+let cDims = { w: 2, h: 1, d: 3 };
+const cGroup = new THREE.Group();
+scene.add(cGroup);
+
+function hex(n) { return '#' + n.toString(16).padStart(6, '0'); }
+
+function buildContainer() {
+  while (cGroup.children.length) cGroup.remove(cGroup.children[0]);
+
+  const { w, h, d } = cDims;
+
+  // Floor face
+  const floorM = new THREE.MeshStandardMaterial({ color: 0x182840, roughness: 1 });
+  const floor  = new THREE.Mesh(new THREE.PlaneGeometry(w, d), floorM);
+  floor.rotation.x = -Math.PI / 2;
+  floor.position.y = 0.001;
+  floor.receiveShadow = true;
+  cGroup.add(floor);
+
+  // Inner grid
+  const ig = new THREE.GridHelper(1, 10, 0x223050, 0x1a2540);
+  ig.scale.set(w, 1, d);
+  ig.position.y = 0.003;
+  cGroup.add(ig);
+
+  // Translucent walls
+  const wm = new THREE.MeshStandardMaterial({
+    color: 0x3355cc, transparent: true, opacity: 0.06,
+    side: THREE.DoubleSide, depthWrite: false
+  });
+  function wall(pw, ph, ry, px, py, pz) {
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(pw, ph), wm);
+    m.rotation.y = ry;
+    m.position.set(px, py, pz);
+    cGroup.add(m);
+  }
+  wall(w, h,          0,           0, h/2, -d/2); // back
+  wall(w, h,       Math.PI,        0, h/2,  d/2); // front
+  wall(d, h,  Math.PI/2,   -w/2, h/2,     0);    // left
+  wall(d, h, -Math.PI/2,    w/2, h/2,     0);    // right
+  wall(w, d, -Math.PI/2,    0,   h,       0);    // top (uses Y rotation of 0, X = -pi/2)
+
+  // Fix top wall rotation
+  cGroup.children[cGroup.children.length - 1].rotation.set(-Math.PI / 2, 0, 0);
+
+  // Wireframe edges
+  const boxG = new THREE.BoxGeometry(w, h, d);
+  const edgeL = new THREE.LineSegments(
+    new THREE.EdgesGeometry(boxG),
+    new THREE.LineBasicMaterial({ color: 0x667eea })
+  );
+  edgeL.position.set(0, h / 2, 0);
+  cGroup.add(edgeL);
+
+  // Corner posts
+  const postM = new THREE.MeshStandardMaterial({ color: 0x667eea, emissive: 0x2233aa, emissiveIntensity: 0.3 });
+  const postG = new THREE.BoxGeometry(0.04, h, 0.04);
+  [[-1,-1],[-1,1],[1,-1],[1,1]].forEach(([sx, sz]) => {
+    const p = new THREE.Mesh(postG, postM);
+    p.position.set(sx * w/2, h/2, sz * d/2);
+    cGroup.add(p);
+  });
+
+  // Dim annotation meshes (thin line rulers)
+  addRuler(w, 0, 0, d/2 + 0.12, 'w');
+  addRuler(d, 0, 0, 0,          'z', true);
+  addRuler(h, -w/2 - 0.12, 0,   0,  'h', false, true);
+
+  updateVolUI();
+  fitCamera();
+}
+
+function addRuler(len, offX, offY, offZ, axis, rotY = false, rotZ = false) {
+  const mat = new THREE.LineBasicMaterial({ color: 0x445588 });
+  const pts = [new THREE.Vector3(-len/2, 0, 0), new THREE.Vector3(len/2, 0, 0)];
+  const geom = new THREE.BufferGeometry().setFromPoints(pts);
+  const line = new THREE.Line(geom, mat);
+  line.position.set(offX, offY, offZ);
+  if (rotY) line.rotation.y = Math.PI / 2;
+  if (rotZ) line.rotation.z = Math.PI / 2;
+  cGroup.add(line);
+}
+
+function fitCamera() {
+  const { w, h, d } = cDims;
+  const dist = Math.max(w, h, d) * 2.2 + 2;
+  camera.position.set(dist * 0.8, dist * 0.65, dist * 0.9);
+  orbit.target.set(0, h / 2, 0);
+  orbit.update();
+}
+
+// ═══════════════════════════════════════════════════════════
+// FURNITURE LIBRARY
+// ═══════════════════════════════════════════════════════════
+
+const LIBRARY = [
+  { name: 'Sofa',            w: 2.0, h: 0.85, d: 0.90, color: 0x4a8fd9 },
+  { name: 'Double Bed',      w: 2.0, h: 0.55, d: 1.60, color: 0x7b68ee },
+  { name: 'Single Bed',      w: 2.0, h: 0.55, d: 0.90, color: 0x9b8ee8 },
+  { name: 'Wardrobe',        w: 1.0, h: 2.00, d: 0.60, color: 0xd4a85c },
+  { name: 'Dining Table',    w: 1.8, h: 0.75, d: 0.90, color: 0xe8965c },
+  { name: 'Chair',           w: 0.6, h: 0.90, d: 0.60, color: 0xe86c5c },
+  { name: 'Armchair',        w: 0.9, h: 0.95, d: 0.90, color: 0x4ad9c0 },
+  { name: 'Desk',            w: 1.5, h: 0.75, d: 0.60, color: 0x5ce8a8 },
+  { name: 'Bookshelf',       w: 0.8, h: 1.80, d: 0.30, color: 0xd45ca8 },
+  { name: 'Coffee Table',    w: 1.2, h: 0.45, d: 0.60, color: 0xe8b45c },
+  { name: 'TV Unit',         w: 1.5, h: 0.50, d: 0.50, color: 0x5ca8d4 },
+  { name: 'Fridge',          w: 0.7, h: 1.80, d: 0.65, color: 0x8ad4a8 },
+  { name: 'Washing Machine', w: 0.6, h: 0.85, d: 0.60, color: 0xa8c4e8 },
+  { name: 'Small Box',       w: 0.4, h: 0.40, d: 0.40, color: 0xd4c484 },
+  { name: 'Large Box',       w: 0.6, h: 0.60, d: 0.50, color: 0xc4b474 },
+  { name: 'Bicycle',         w: 0.5, h: 1.00, d: 1.80, color: 0xff8c69 },
+  { name: 'Mattress',        w: 1.4, h: 0.25, d: 2.00, color: 0xb0c4de },
+  { name: 'Chest of Drawers',w: 0.9, h: 1.10, d: 0.50, color: 0xdeb887 },
+];
+
+function buildFurniturePanel() {
+  const list = document.getElementById('fur-list');
+  LIBRARY.forEach(def => {
+    const vol = (def.w * def.h * def.d).toFixed(2);
+    const el = document.createElement('div');
+    el.className = 'fur-item';
+    el.innerHTML = `
+      <div class="fur-dot" style="background:${hex(def.color)}"></div>
+      <div class="fur-info">
+        <div class="fur-name">${def.name}</div>
+        <div class="fur-dims">${def.w} × ${def.h} × ${def.d} m</div>
+        <div class="fur-vol">${vol} m³</div>
+      </div>`;
+    el.addEventListener('click', () => spawnObj(def));
+    list.appendChild(el);
+  });
+}
+
+// ═══════════════════════════════════════════════════════════
+// PLACED OBJECTS
+// ═══════════════════════════════════════════════════════════
+
+const placed = [];
+let uid = 1;
+let selObj = null;
+
+function spawnObj(def) {
+  const { name, w, h, d, color } = def;
+
+  const geom = new THREE.BoxGeometry(w, h, d);
+  const mat  = new THREE.MeshStandardMaterial({
+    color,
+    roughness: 0.55,
+    metalness: 0.1,
+    transparent: true,
+    opacity: 0.88,
+    emissive: new THREE.Color(0x000000),
+    emissiveIntensity: 0,
+  });
+  const mesh = new THREE.Mesh(geom, mat);
+  mesh.castShadow = true;
+  mesh.receiveShadow = true;
+
+  // Edge highlight
+  const edgeL = new THREE.LineSegments(
+    new THREE.EdgesGeometry(geom),
+    new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.2 })
+  );
+  mesh.add(edgeL);
+
+  // Spawn with small random offset so stacked items are visible
+  mesh.position.set(
+    (Math.random() - 0.5) * 0.4,
+    h / 2,
+    (Math.random() - 0.5) * 0.4
+  );
+  clamp(mesh, w, h, d);
+  scene.add(mesh);
+
+  const obj = { mesh, name, w, h, d, color, vol: w * h * d, id: uid++ };
+  placed.push(obj);
+  select(obj);
+  refreshUI();
+}
+
+function removeObj(obj) {
+  scene.remove(obj.mesh);
+  obj.mesh.geometry.dispose();
+  obj.mesh.material.dispose();
+  const i = placed.indexOf(obj);
+  if (i !== -1) placed.splice(i, 1);
+  if (selObj === obj) select(null);
+  refreshUI();
+}
+
+function select(obj) {
+  if (selObj) {
+    selObj.mesh.material.emissive.set(0x000000);
+    selObj.mesh.material.emissiveIntensity = 0;
+  }
+  selObj = obj;
+  if (obj) {
+    obj.mesh.material.emissive.set(0x8899ff);
+    obj.mesh.material.emissiveIntensity = 0.4;
+    const bar = document.getElementById('selbar');
+    bar.style.display = 'block';
+    document.getElementById('sel-name').textContent =
+      `${obj.name}  ${obj.w} × ${obj.h} × ${obj.d} m`;
+  } else {
+    document.getElementById('selbar').style.display = 'none';
+  }
+  refreshPlacedList();
+}
+
+// ── Clamping to container ──
+function clamp(mesh, w, h, d) {
+  const hw = w/2, hh = h/2, hd = d/2;
+  const { w: cw, h: ch, d: cd } = cDims;
+  mesh.position.x = Math.max(-cw/2 + hw, Math.min(cw/2 - hw, mesh.position.x));
+  mesh.position.y = Math.max(hh,          Math.min(ch  - hh, mesh.position.y));
+  mesh.position.z = Math.max(-cd/2 + hd, Math.min(cd/2 - hd, mesh.position.z));
+}
+
+// ═══════════════════════════════════════════════════════════
+// DRAG
+// ═══════════════════════════════════════════════════════════
+
+const rc      = new THREE.Raycaster();
+const mNDC    = new THREE.Vector2();
+const dPlane  = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+const dHit    = new THREE.Vector3();
+const dOffset = new THREE.Vector3();
+let dragging = false;
+let dragTarget = null;
+
+function toNDC(e) {
+  const r = renderer.domElement.getBoundingClientRect();
+  mNDC.set(
+    ((e.clientX - r.left) / r.width)  * 2 - 1,
+   -((e.clientY - r.top)  / r.height) * 2 + 1
+  );
+}
+
+function meshToObj(o) {
+  let cur = o;
+  while (cur) {
+    const found = placed.find(p => p.mesh === cur);
+    if (found) return found;
+    cur = cur.parent;
+  }
+  return null;
+}
+
+// capture phase — runs before OrbitControls
+renderer.domElement.addEventListener('mousedown', e => {
+  if (e.button !== 0) return;
+  toNDC(e);
+  rc.setFromCamera(mNDC, camera);
+
+  const hits = rc.intersectObjects(placed.map(p => p.mesh), true);
+  if (hits.length) {
+    const obj = meshToObj(hits[0].object);
+    if (obj) {
+      e.stopPropagation();
+      select(obj);
+      dragging   = true;
+      dragTarget = obj;
+      orbit.enabled = false;
+
+      dPlane.constant = 0; // drag on Y = 0 floor plane
+      rc.ray.intersectPlane(dPlane, dHit);
+      dOffset.set(obj.mesh.position.x - dHit.x, 0, obj.mesh.position.z - dHit.z);
+
+      renderer.domElement.style.cursor = 'grabbing';
+    }
+  } else {
+    select(null);
+  }
+}, true);
+
+renderer.domElement.addEventListener('mousemove', e => {
+  if (!dragging || !dragTarget) {
+    // Hover cursor
+    toNDC(e);
+    rc.setFromCamera(mNDC, camera);
+    const hits = rc.intersectObjects(placed.map(p => p.mesh), true);
+    renderer.domElement.style.cursor = hits.length ? 'grab' : 'default';
+    return;
+  }
+
+  toNDC(e);
+  rc.setFromCamera(mNDC, camera);
+  if (rc.ray.intersectPlane(dPlane, dHit)) {
+    let nx = Math.round((dHit.x + dOffset.x) * 10) / 10;
+    let nz = Math.round((dHit.z + dOffset.z) * 10) / 10;
+    dragTarget.mesh.position.x = nx;
+    dragTarget.mesh.position.z = nz;
+    clamp(dragTarget.mesh, dragTarget.w, dragTarget.h, dragTarget.d);
+    checkOverlap();
+    refreshPlacedList();
+  }
+});
+
+renderer.domElement.addEventListener('mouseup', e => {
+  if (e.button !== 0) return;
+  dragging   = false;
+  dragTarget = null;
+  orbit.enabled = true;
+  renderer.domElement.style.cursor = 'default';
+  document.getElementById('warnbar').style.display = 'none';
+});
+
+// ═══════════════════════════════════════════════════════════
+// KEYBOARD
+// ═══════════════════════════════════════════════════════════
+
+document.addEventListener('keydown', e => {
+  if (e.target.tagName === 'INPUT') return;
+
+  if (e.key === 'Escape') { select(null); return; }
+  if (!selObj) return;
+
+  const obj  = selObj;
+  const step = 0.1;
+
+  switch (e.key) {
+    case 'r': case 'R':
+      rotateObj(obj);
+      break;
+
+    case 'Delete': case 'Backspace':
+      removeObj(obj);
+      break;
+
+    case 'ArrowLeft':
+      e.preventDefault();
+      obj.mesh.position.x -= step;
+      clamp(obj.mesh, obj.w, obj.h, obj.d);
+      break;
+
+    case 'ArrowRight':
+      e.preventDefault();
+      obj.mesh.position.x += step;
+      clamp(obj.mesh, obj.w, obj.h, obj.d);
+      break;
+
+    case 'ArrowUp':
+      e.preventDefault();
+      if (e.shiftKey) obj.mesh.position.y += step;
+      else            obj.mesh.position.z -= step;
+      clamp(obj.mesh, obj.w, obj.h, obj.d);
+      break;
+
+    case 'ArrowDown':
+      e.preventDefault();
+      if (e.shiftKey) obj.mesh.position.y -= step;
+      else            obj.mesh.position.z += step;
+      clamp(obj.mesh, obj.w, obj.h, obj.d);
+      break;
+  }
+  refreshPlacedList();
+});
+
+function rotateObj(obj) {
+  [obj.w, obj.d] = [obj.d, obj.w];
+  const ng = new THREE.BoxGeometry(obj.w, obj.h, obj.d);
+  obj.mesh.geometry.dispose();
+  obj.mesh.geometry = ng;
+  obj.mesh.children.forEach(c => {
+    if (c instanceof THREE.LineSegments) {
+      c.geometry.dispose();
+      c.geometry = new THREE.EdgesGeometry(ng);
+    }
+  });
+  clamp(obj.mesh, obj.w, obj.h, obj.d);
+  // Update sel-name label
+  if (selObj === obj) {
+    document.getElementById('sel-name').textContent =
+      `${obj.name}  ${obj.w} × ${obj.h} × ${obj.d} m`;
+  }
+  refreshUI();
+}
+
+// ═══════════════════════════════════════════════════════════
+// OVERLAP CHECK
+// ═══════════════════════════════════════════════════════════
+
+function aabbOverlap(a, b) {
+  const eps = 0.015;
+  const pa = a.mesh.position, pb = b.mesh.position;
+  return (
+    Math.abs(pa.x - pb.x) < (a.w + b.w)/2 - eps &&
+    Math.abs(pa.y - pb.y) < (a.h + b.h)/2 - eps &&
+    Math.abs(pa.z - pb.z) < (a.d + b.d)/2 - eps
+  );
+}
+
+function checkOverlap() {
+  let bad = false;
+  outer: for (let i = 0; i < placed.length; i++)
+    for (let j = i+1; j < placed.length; j++)
+      if (aabbOverlap(placed[i], placed[j])) { bad = true; break outer; }
+
+  document.getElementById('warnbar').style.display = bad ? 'block' : 'none';
+}
+
+// ═══════════════════════════════════════════════════════════
+// UI REFRESH
+// ═══════════════════════════════════════════════════════════
+
+function refreshUI() {
+  updateVolUI();
+  refreshPlacedList();
+}
+
+function updateVolUI() {
+  const { w, h, d } = cDims;
+  const total = w * h * d;
+  const used  = placed.reduce((s, o) => s + o.vol, 0);
+  const pct   = Math.min(100, used / total * 100);
+
+  document.getElementById('vol-total').textContent = total.toFixed(1);
+  document.getElementById('vol-used').textContent  = used.toFixed(2);
+  document.getElementById('vol-pct').textContent   = pct.toFixed(0) + '%';
+
+  const bar = document.getElementById('prog');
+  bar.style.width = pct + '%';
+  if      (pct > 90) bar.style.background = 'linear-gradient(90deg,#ff4455,#ff1122)';
+  else if (pct > 70) bar.style.background = 'linear-gradient(90deg,#ffaa33,#ff7700)';
+  else               bar.style.background = 'linear-gradient(90deg,#667eea,#764ba2)';
+}
+
+function refreshPlacedList() {
+  const list = document.getElementById('placed-list');
+  document.getElementById('pl-count').textContent = placed.length;
+
+  if (!placed.length) {
+    list.innerHTML = '<div style="color:var(--muted);font-size:11px;font-style:italic">Click items in the library →</div>';
+    return;
+  }
+
+  list.innerHTML = '';
+  placed.forEach(obj => {
+    const el  = document.createElement('div');
+    el.className = 'pl-item' + (obj === selObj ? ' sel' : '');
+
+    const pos = obj.mesh.position;
+    el.innerHTML = `
+      <div class="pl-dot" style="background:${hex(obj.color)}"></div>
+      <div class="pl-info">
+        <div class="pl-name">${obj.name}</div>
+        <div class="pl-size">${obj.w}×${obj.h}×${obj.d} m &nbsp;·&nbsp; ${obj.vol.toFixed(2)} m³</div>
+      </div>
+      <div class="pl-rm" title="Remove">×</div>`;
+
+    el.querySelector('.pl-rm').addEventListener('click', ev => {
+      ev.stopPropagation();
+      removeObj(obj);
+    });
+    el.addEventListener('click', () => select(obj));
+    list.appendChild(el);
+  });
+}
+
+// ═══════════════════════════════════════════════════════════
+// CONTAINER UPDATE
+// ═══════════════════════════════════════════════════════════
+
+function doUpdateContainer() {
+  const w = Math.max(0.5, parseFloat(document.getElementById('cw').value) || 2);
+  const h = Math.max(0.5, parseFloat(document.getElementById('ch').value) || 1);
+  const d = Math.max(0.5, parseFloat(document.getElementById('cd').value) || 3);
+  cDims = { w, h, d };
+  buildContainer();
+  placed.forEach(o => clamp(o.mesh, o.w, o.h, o.d));
+  refreshUI();
+}
+
+function doAddCustom() {
+  const name = document.getElementById('custom-name').value.trim() || 'Custom';
+  const w    = Math.max(0.1, parseFloat(document.getElementById('cust-w').value) || 1);
+  const h    = Math.max(0.1, parseFloat(document.getElementById('cust-h').value) || 0.5);
+  const d    = Math.max(0.1, parseFloat(document.getElementById('cust-d').value) || 1);
+  const color = 0x444444 + Math.floor(Math.random() * 0x888888);
+  spawnObj({ name, w, h, d, color });
+}
+
+document.getElementById('btn-update-container').addEventListener('click', doUpdateContainer);
+document.getElementById('btn-add-custom').addEventListener('click', doAddCustom);
+
+// Update dims on Enter key in container dim inputs
+['cw','ch','cd'].forEach(id =>
+  document.getElementById(id).addEventListener('keydown', e => {
+    if (e.key === 'Enter') doUpdateContainer();
+  })
+);
+
+// ═══════════════════════════════════════════════════════════
+// RESIZE
+// ═══════════════════════════════════════════════════════════
+
+window.addEventListener('resize', () => {
+  camera.aspect = wrap.clientWidth / wrap.clientHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(wrap.clientWidth, wrap.clientHeight);
+});
+
+// ═══════════════════════════════════════════════════════════
+// RENDER LOOP
+// ═══════════════════════════════════════════════════════════
+
+(function animate() {
+  requestAnimationFrame(animate);
+  orbit.update();
+  renderer.render(scene, camera);
+})();
+
+// ═══════════════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════════════
+
+buildContainer();
+buildFurniturePanel();
+
+</script>
+</body>
+</html>
