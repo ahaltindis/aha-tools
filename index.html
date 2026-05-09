@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>aha-tools</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: 'Segoe UI', system-ui, sans-serif;
+  background: #0d0d1a;
+  color: #dde0f0;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 60px 20px;
+}
+h1 {
+  font-size: 28px;
+  font-weight: 800;
+  letter-spacing: -0.5px;
+  color: #667eea;
+  margin-bottom: 8px;
+}
+.subtitle {
+  font-size: 14px;
+  color: #5a6a8a;
+  margin-bottom: 48px;
+}
+.tools {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+  max-width: 540px;
+}
+.tool {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 18px 20px;
+  background: #13132a;
+  border: 1px solid #1e2d52;
+  border-radius: 10px;
+  text-decoration: none;
+  color: inherit;
+  transition: border-color .15s;
+}
+.tool:hover { border-color: #667eea; }
+.tool-name {
+  font-size: 15px;
+  font-weight: 700;
+  color: #dde0f0;
+  margin-bottom: 3px;
+}
+.tool-desc {
+  font-size: 13px;
+  color: #5a6a8a;
+}
+.tool-arrow {
+  margin-left: auto;
+  color: #1e2d52;
+  font-size: 18px;
+  transition: color .15s;
+}
+.tool:hover .tool-arrow { color: #667eea; }
+</style>
+</head>
+<body>
+  <h1>aha-tools</h1>
+  <p class="subtitle">Small single-page tools.</p>
+  <div class="tools">
+    <a class="tool" href="fit-in-volume/">
+      <div>
+        <div class="tool-name">fit-in-volume</div>
+        <div class="tool-desc">3D drag-and-drop simulator for planning what fits in a given volume — useful for home removals and packing.</div>
+      </div>
+      <span class="tool-arrow">→</span>
+    </a>
+  </div>
+</body>
+</html>
