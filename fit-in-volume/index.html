@@ -790,9 +790,10 @@ function clamp(mesh, w, h, d) {
 
 const rc      = new THREE.Raycaster();
 const mNDC    = new THREE.Vector2();
-const dPlane  = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
-const dHit    = new THREE.Vector3();
-const dOffset = new THREE.Vector3();
+const dPlane     = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+const dHit       = new THREE.Vector3();
+const dHitStart  = new THREE.Vector3(); // ray hit at drag start
+const dStartPos  = new THREE.Vector3(); // object position at drag start
 let dragging     = false;
 let dragTarget   = null;
 let dragVertical = false;
@@ -828,20 +829,19 @@ renderer.domElement.addEventListener('mousedown', e => {
       dragVertical = e.shiftKey;
       orbit.enabled = false;
 
+      dStartPos.copy(obj.mesh.position);
+
       if (dragVertical) {
-        // Vertical plane facing the camera (normal is horizontal, toward camera)
         const camDir = new THREE.Vector3().copy(camera.position).sub(obj.mesh.position);
         camDir.y = 0;
         camDir.normalize();
         dPlane.setFromNormalAndCoplanarPoint(camDir, obj.mesh.position);
-        rc.ray.intersectPlane(dPlane, dHit);
-        dOffset.set(0, obj.mesh.position.y - dHit.y, 0);
+        rc.ray.intersectPlane(dPlane, dHitStart);
         dragFixedX = obj.mesh.position.x;
         dragFixedZ = obj.mesh.position.z;
       } else {
-        dPlane.set(new THREE.Vector3(0, 1, 0), 0); // floor plane
-        rc.ray.intersectPlane(dPlane, dHit);
-        dOffset.set(obj.mesh.position.x - dHit.x, 0, obj.mesh.position.z - dHit.z);
+        dPlane.set(new THREE.Vector3(0, 1, 0), 0);
+        rc.ray.intersectPlane(dPlane, dHitStart);
       }
 
       renderer.domElement.style.cursor = 'grabbing';
@@ -864,15 +864,15 @@ renderer.domElement.addEventListener('mousemove', e => {
   toNDC(e);
   rc.setFromCamera(mNDC, camera);
   if (rc.ray.intersectPlane(dPlane, dHit)) {
+    const snap = v => Math.round(v * 10) / 10;
     if (dragVertical) {
-      let ny = Math.round((dHit.y + dOffset.y) * 10) / 10;
       dragTarget.mesh.position.x = dragFixedX;
       dragTarget.mesh.position.z = dragFixedZ;
-      dragTarget.mesh.position.y = ny;
+      dragTarget.mesh.position.y = dStartPos.y + snap(dHit.y - dHitStart.y);
       floorClamp(dragTarget.mesh, dragTarget.h);
     } else {
-      dragTarget.mesh.position.x = Math.round((dHit.x + dOffset.x) * 10) / 10;
-      dragTarget.mesh.position.z = Math.round((dHit.z + dOffset.z) * 10) / 10;
+      dragTarget.mesh.position.x = dStartPos.x + snap(dHit.x - dHitStart.x);
+      dragTarget.mesh.position.z = dStartPos.z + snap(dHit.z - dHitStart.z);
       floorClamp(dragTarget.mesh, dragTarget.h);
     }
     checkOverlap();
