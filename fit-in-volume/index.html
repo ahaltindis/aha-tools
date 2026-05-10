@@ -269,7 +269,7 @@ hr { border: none; border-top: 1px solid var(--border); }
   backdrop-filter: blur(4px);
 }
 #save-name:focus { border-color: var(--accent); }
-#btn-save, #btn-load-open {
+#btn-save, #btn-save-as, #btn-load-open {
   background: rgba(13,13,26,.85);
   border: 1px solid var(--border);
   color: var(--text);
@@ -281,8 +281,15 @@ hr { border: none; border-top: 1px solid var(--border); }
   backdrop-filter: blur(4px);
   white-space: nowrap;
 }
-#btn-save:hover  { border-color: var(--accent); color: var(--accent); }
-#btn-load-open:hover { border-color: var(--accent); color: var(--accent); }
+#btn-save:hover, #btn-load-open:hover { border-color: var(--accent); color: var(--accent); }
+#btn-save-as {
+  color: var(--accent);
+  box-shadow: 0 0 6px rgba(102,126,234,.3);
+}
+#btn-save-as:hover {
+  border-color: var(--accent);
+  box-shadow: 0 0 10px rgba(102,126,234,.5);
+}
 #loads-dropdown {
   display: none;
   position: absolute;
@@ -418,6 +425,7 @@ hr { border: none; border-top: 1px solid var(--border); }
   <div id="save-bar">
     <input type="text" id="save-name" placeholder="Save name…">
     <button id="btn-save">Save</button>
+    <button id="btn-save-as" style="display:none">Save as</button>
     <button id="btn-load-open">Load ▾</button>
     <div id="loads-dropdown">
       <div id="saves-list"></div>
@@ -1228,6 +1236,7 @@ function saveState() {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(saves));
       nameEl.value = name;
       refreshSavesList();
+      syncSaveAsBtn();
       return;
     }
   }
@@ -1240,6 +1249,27 @@ function saveState() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(saves));
   nameEl.value = name;
   refreshSavesList();
+  syncSaveAsBtn();
+}
+
+function saveAsState() {
+  const nameEl = document.getElementById('save-name');
+  const saves  = getSaves();
+  const name   = nameEl.value.trim() || nextSaveName(saves);
+  const entry  = { id: Date.now().toString(), name, date: new Date().toLocaleDateString(), itemCount: placed.length, data: stateToJSON() };
+  saves.unshift(entry);
+  currentSaveId = entry.id;
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(saves));
+  nameEl.value = name;
+  refreshSavesList();
+  syncSaveAsBtn();
+}
+
+function syncSaveAsBtn() {
+  if (!currentSaveId) { document.getElementById('btn-save-as').style.display = 'none'; return; }
+  const current = getSaves().find(s => s.id === currentSaveId);
+  const nameChanged = current && document.getElementById('save-name').value.trim() !== current.name;
+  document.getElementById('btn-save-as').style.display = nameChanged ? '' : 'none';
 }
 
 function loadSave(id) {
@@ -1249,6 +1279,7 @@ function loadSave(id) {
   currentSaveId = id;
   document.getElementById('save-name').value = save.name;
   refreshSavesList();
+  syncSaveAsBtn();
   document.getElementById('loads-dropdown').classList.remove('open');
 }
 
@@ -1283,6 +1314,8 @@ function refreshSavesList() {
 }
 
 document.getElementById('btn-save').addEventListener('click', saveState);
+document.getElementById('btn-save-as').addEventListener('click', saveAsState);
+document.getElementById('save-name').addEventListener('input', syncSaveAsBtn);
 document.getElementById('save-name').addEventListener('keydown', e => {
   if (e.key === 'Enter') saveState();
 });
