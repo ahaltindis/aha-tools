@@ -804,13 +804,7 @@ function toNDC(e) {
 }
 
 function meshToObj(o) {
-  let cur = o;
-  while (cur) {
-    const found = placed.find(p => p.mesh === cur);
-    if (found) return found;
-    cur = cur.parent;
-  }
-  return null;
+  return placed.find(p => p.mesh === o) || null;
 }
 
 // capture phase — runs before OrbitControls
@@ -819,7 +813,7 @@ renderer.domElement.addEventListener('mousedown', e => {
   toNDC(e);
   rc.setFromCamera(mNDC, camera);
 
-  const hits = rc.intersectObjects(placed.map(p => p.mesh), true);
+  const hits = rc.intersectObjects(placed.map(p => p.mesh), false);
   if (hits.length) {
     const obj = meshToObj(hits[0].object);
     if (obj) {
@@ -845,7 +839,7 @@ renderer.domElement.addEventListener('mousemove', e => {
     // Hover cursor
     toNDC(e);
     rc.setFromCamera(mNDC, camera);
-    const hits = rc.intersectObjects(placed.map(p => p.mesh), true);
+    const hits = rc.intersectObjects(placed.map(p => p.mesh), false);
     renderer.domElement.style.cursor = hits.length ? 'grab' : 'default';
     return;
   }
