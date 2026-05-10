@@ -792,8 +792,11 @@ const mNDC    = new THREE.Vector2();
 const dPlane  = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
 const dHit    = new THREE.Vector3();
 const dOffset = new THREE.Vector3();
-let dragging = false;
-let dragTarget = null;
+let dragging     = false;
+let dragTarget   = null;
+let dragVertical = false;
+let dragFixedX   = 0;
+let dragFixedZ   = 0;
 
 function toNDC(e) {
   const r = renderer.domElement.getBoundingClientRect();
@@ -819,13 +822,26 @@ renderer.domElement.addEventListener('mousedown', e => {
     if (obj) {
       e.stopPropagation();
       select(obj);
-      dragging   = true;
-      dragTarget = obj;
+      dragging     = true;
+      dragTarget   = obj;
+      dragVertical = e.shiftKey;
       orbit.enabled = false;
 
-      dPlane.constant = 0; // drag on Y = 0 floor plane
-      rc.ray.intersectPlane(dPlane, dHit);
-      dOffset.set(obj.mesh.position.x - dHit.x, 0, obj.mesh.position.z - dHit.z);
+      if (dragVertical) {
+        // Vertical plane facing the camera (normal is horizontal, toward camera)
+        const camDir = new THREE.Vector3().copy(camera.position).sub(obj.mesh.position);
+        camDir.y = 0;
+        camDir.normalize();
+        dPlane.setFromNormalAndCoplanarPoint(camDir, obj.mesh.position);
+        rc.ray.intersectPlane(dPlane, dHit);
+        dOffset.set(0, obj.mesh.position.y - dHit.y, 0);
+        dragFixedX = obj.mesh.position.x;
+        dragFixedZ = obj.mesh.position.z;
+      } else {
+        dPlane.set(new THREE.Vector3(0, 1, 0), 0); // floor plane
+        rc.ray.intersectPlane(dPlane, dHit);
+        dOffset.set(obj.mesh.position.x - dHit.x, 0, obj.mesh.position.z - dHit.z);
+      }
 
       renderer.domElement.style.cursor = 'grabbing';
     }
@@ -847,11 +863,17 @@ renderer.domElement.addEventListener('mousemove', e => {
   toNDC(e);
   rc.setFromCamera(mNDC, camera);
   if (rc.ray.intersectPlane(dPlane, dHit)) {
-    let nx = Math.round((dHit.x + dOffset.x) * 10) / 10;
-    let nz = Math.round((dHit.z + dOffset.z) * 10) / 10;
-    dragTarget.mesh.position.x = nx;
-    dragTarget.mesh.position.z = nz;
-    floorClamp(dragTarget.mesh, dragTarget.h);
+    if (dragVertical) {
+      let ny = Math.round((dHit.y + dOffset.y) * 10) / 10;
+      dragTarget.mesh.position.x = dragFixedX;
+      dragTarget.mesh.position.z = dragFixedZ;
+      dragTarget.mesh.position.y = ny;
+      floorClamp(dragTarget.mesh, dragTarget.h);
+    } else {
+      dragTarget.mesh.position.x = Math.round((dHit.x + dOffset.x) * 10) / 10;
+      dragTarget.mesh.position.z = Math.round((dHit.z + dOffset.z) * 10) / 10;
+      floorClamp(dragTarget.mesh, dragTarget.h);
+    }
     checkOverlap();
     refreshPlacedList();
   }
