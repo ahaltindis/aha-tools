@@ -314,8 +314,6 @@ hr { border: none; border-top: 1px solid var(--border); }
 .save-item-info { flex: 1; min-width: 0; }
 .save-item-name { font-size: 12px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .save-item-meta { font-size: 10px; color: var(--muted); margin-top: 1px; }
-.save-load { color: var(--accent); cursor: pointer; font-size: 11px; font-weight: 600; flex-shrink: 0; }
-.save-load:hover { text-decoration: underline; }
 .save-del { color: #ff4455; cursor: pointer; font-size: 15px; line-height: 1; flex-shrink: 0; }
 .save-del:hover { opacity: 0.7; }
 .save-active { border-color: var(--accent) !important; }
@@ -1271,15 +1269,15 @@ function refreshSavesList() {
   saves.forEach(s => {
     const el = document.createElement('div');
     el.className = 'save-item' + (s.id === currentSaveId ? ' save-active' : '');
+    el.style.cursor = 'pointer';
     el.innerHTML = `
       <div class="save-item-info">
         <div class="save-item-name">${s.name}</div>
         <div class="save-item-meta">${s.date} · ${s.itemCount} item${s.itemCount !== 1 ? 's' : ''}</div>
       </div>
-      <span class="save-load">Load</span>
       <span class="save-del" title="Delete">×</span>`;
-    el.querySelector('.save-load').addEventListener('click', () => loadSave(s.id));
-    el.querySelector('.save-del').addEventListener('click', () => deleteSave(s.id));
+    el.addEventListener('click', () => loadSave(s.id));
+    el.querySelector('.save-del').addEventListener('click', e => { e.stopPropagation(); deleteSave(s.id); });
     list.appendChild(el);
   });
 }
