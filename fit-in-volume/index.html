@@ -672,7 +672,7 @@ function buildFurniturePanel() {
 // ═══════════════════════════════════════════════════════════
 
 function collidesWithPlaced(x, y, z, w, h, d) {
-  const eps = 0.05;
+  const eps = 0.001;
   return placed.some(o =>
     Math.abs(o.mesh.position.x - x) < (o.w + w) / 2 - eps &&
     Math.abs(o.mesh.position.y - y) < (o.h + h) / 2 - eps &&
@@ -999,7 +999,7 @@ function rotateObj(obj) {
 // ═══════════════════════════════════════════════════════════
 
 function aabbOverlap(a, b) {
-  const eps = 0.015;
+  const eps = 0.001;
   const pa = a.mesh.position, pb = b.mesh.position;
   return (
     Math.abs(pa.x - pb.x) < (a.w + b.w)/2 - eps &&
