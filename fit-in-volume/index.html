@@ -246,6 +246,60 @@ kbd {
 /* divider */
 hr { border: none; border-top: 1px solid var(--border); }
 
+/* ── Save bar ── */
+#save-bar {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  z-index: 10;
+}
+#save-name {
+  background: rgba(13,13,26,.85);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 5px 9px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-family: inherit;
+  outline: none;
+  width: 140px;
+  backdrop-filter: blur(4px);
+}
+#save-name:focus { border-color: var(--accent); }
+#btn-save, #btn-load-open {
+  background: rgba(13,13,26,.85);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 5px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-family: inherit;
+  cursor: pointer;
+  backdrop-filter: blur(4px);
+  white-space: nowrap;
+}
+#btn-save:hover  { border-color: var(--accent); color: var(--accent); }
+#btn-load-open:hover { border-color: var(--accent); color: var(--accent); }
+#loads-dropdown {
+  display: none;
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px;
+  min-width: 240px;
+  max-height: 320px;
+  overflow-y: auto;
+  z-index: 20;
+  box-shadow: 0 8px 24px rgba(0,0,0,.5);
+}
+#loads-dropdown.open { display: block; }
+
 /* save list items */
 .save-item {
   display: flex;
@@ -344,17 +398,6 @@ hr { border: none; border-top: 1px solid var(--border); }
     </div>
   </div>
 
-  <hr>
-
-  <div>
-    <div class="sec-title">Saves</div>
-    <div style="display:flex;gap:6px;margin-bottom:8px">
-      <input type="text" class="dim-inp" id="save-name" placeholder="Save name…" style="flex:1;min-width:0">
-      <button class="btn" id="btn-save" style="width:auto;padding:7px 10px">Save</button>
-    </div>
-    <div id="saves-list"></div>
-  </div>
-
   <div style="margin-top:auto">
     <div class="sec-title">Controls</div>
     <div class="help">
@@ -374,6 +417,14 @@ hr { border: none; border-top: 1px solid var(--border); }
 
 <!-- ════════════════ CANVAS ════════════════ -->
 <div id="canvas-wrap">
+  <div id="save-bar">
+    <input type="text" id="save-name" placeholder="Save name…">
+    <button id="btn-save">Save</button>
+    <button id="btn-load-open">Load ▾</button>
+    <div id="loads-dropdown">
+      <div id="saves-list"></div>
+    </div>
+  </div>
   <div class="ov" id="selbar">▸ <span id="sel-name"></span></div>
   <div class="ov" id="hint">Right-drag to orbit · Scroll to zoom · Click an object to select it</div>
   <div class="ov" id="warnbar">⚠ Objects are overlapping!</div>
@@ -1200,6 +1251,7 @@ function loadSave(id) {
   currentSaveId = id;
   document.getElementById('save-name').value = save.name;
   refreshSavesList();
+  document.getElementById('loads-dropdown').classList.remove('open');
 }
 
 function deleteSave(id) {
@@ -1235,6 +1287,16 @@ function refreshSavesList() {
 document.getElementById('btn-save').addEventListener('click', saveState);
 document.getElementById('save-name').addEventListener('keydown', e => {
   if (e.key === 'Enter') saveState();
+});
+
+const loadBtn      = document.getElementById('btn-load-open');
+const loadDropdown = document.getElementById('loads-dropdown');
+loadBtn.addEventListener('click', e => {
+  e.stopPropagation();
+  loadDropdown.classList.toggle('open');
+});
+document.addEventListener('click', e => {
+  if (!loadDropdown.contains(e.target)) loadDropdown.classList.remove('open');
 });
 
 buildContainer();
