@@ -611,6 +611,32 @@ function buildFurniturePanel() {
 }
 
 // ═══════════════════════════════════════════════════════════
+// SPAWN POSITIONING
+// ═══════════════════════════════════════════════════════════
+
+function collidesWithPlaced(x, y, z, w, h, d) {
+  const eps = 0.05;
+  return placed.some(o =>
+    Math.abs(o.mesh.position.x - x) < (o.w + w) / 2 - eps &&
+    Math.abs(o.mesh.position.y - y) < (o.h + h) / 2 - eps &&
+    Math.abs(o.mesh.position.z - z) < (o.d + d) / 2 - eps
+  );
+}
+
+function findSpawnPosition(w, h, d) {
+  const gap = 0.15;
+  const x = cDims.w / 2 + gap + w / 2;
+  const y = h / 2;
+  // Scan z slots: 0, +step, -step, +2*step, -2*step ...
+  const step = d + gap;
+  for (let i = 0; i < 40; i++) {
+    const z = (i % 2 === 0 ? 1 : -1) * Math.ceil(i / 2) * step;
+    if (!collidesWithPlaced(x, y, z, w, h, d)) return { x, y, z };
+  }
+  return { x, y, z: 0 };
+}
+
+// ═══════════════════════════════════════════════════════════
 // PLACED OBJECTS
 // ═══════════════════════════════════════════════════════════
 
@@ -642,13 +668,9 @@ function spawnObj(def) {
   );
   mesh.add(edgeL);
 
-  // Spawn with small random offset so stacked items are visible
-  mesh.position.set(
-    (Math.random() - 0.5) * 0.4,
-    h / 2,
-    (Math.random() - 0.5) * 0.4
-  );
-  clamp(mesh, w, h, d);
+  // Spawn outside container, no collision with existing items
+  const sp = findSpawnPosition(w, h, d);
+  mesh.position.set(sp.x, sp.y, sp.z);
   scene.add(mesh);
 
   const obj = { mesh, name, w, h, d, color, vol: w * h * d, id: uid++ };
