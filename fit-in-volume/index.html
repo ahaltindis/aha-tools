@@ -863,7 +863,7 @@ renderer.domElement.addEventListener('mouseup', e => {
   dragTarget = null;
   orbit.enabled = true;
   renderer.domElement.style.cursor = 'default';
-  document.getElementById('warnbar').style.display = 'none';
+  checkOverlap();
 });
 
 // ═══════════════════════════════════════════════════════════
