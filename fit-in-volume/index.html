@@ -157,6 +157,17 @@ body {
   flex-shrink: 0;
 }
 .pl-rm:hover { background: rgba(255,68,85,.2); }
+.pl-section-hdr {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--muted);
+  margin: 8px 0 3px;
+}
+.pl-section-hdr:first-child { margin-top: 0; }
+.pl-section-hdr.outside { color: #ffaa33; }
+.pl-item.outside { border-color: rgba(255,170,51,.35); }
 
 /* ── Controls help ── */
 .help { font-size: 11px; color: var(--muted); line-height: 2; }
@@ -326,7 +337,7 @@ hr { border: none; border-top: 1px solid var(--border); }
   <hr>
 
   <div>
-    <div class="sec-title">Placed Items (<span id="pl-count">0</span>)</div>
+    <div class="sec-title">Items (<span id="pl-count">0</span>)</div>
     <div id="placed-list">
       <div style="color:var(--muted);font-size:11px;font-style:italic">
         Click items in the library →
@@ -680,7 +691,12 @@ function select(obj) {
   // No refreshPlacedList() here — list DOM stays intact so dblclick works
 }
 
-// ── Clamping to container ──
+// ── Clamp to floor only (items can move outside container freely) ──
+function floorClamp(mesh, h) {
+  mesh.position.y = Math.max(h / 2, mesh.position.y);
+}
+
+// ── Full container clamp (spawn + container resize only) ──
 function clamp(mesh, w, h, d) {
   const hw = w/2, hh = h/2, hd = d/2;
   const { w: cw, h: ch, d: cd } = cDims;
@@ -763,7 +779,7 @@ renderer.domElement.addEventListener('mousemove', e => {
     let nz = Math.round((dHit.z + dOffset.z) * 10) / 10;
     dragTarget.mesh.position.x = nx;
     dragTarget.mesh.position.z = nz;
-    clamp(dragTarget.mesh, dragTarget.w, dragTarget.h, dragTarget.d);
+    floorClamp(dragTarget.mesh, dragTarget.h);
     checkOverlap();
     refreshPlacedList();
   }
@@ -811,27 +827,25 @@ document.addEventListener('keydown', e => {
     case 'ArrowLeft':
       e.preventDefault();
       obj.mesh.position.x -= step;
-      clamp(obj.mesh, obj.w, obj.h, obj.d);
       break;
 
     case 'ArrowRight':
       e.preventDefault();
       obj.mesh.position.x += step;
-      clamp(obj.mesh, obj.w, obj.h, obj.d);
       break;
 
     case 'ArrowUp':
       e.preventDefault();
       if (e.shiftKey) obj.mesh.position.y += step;
       else            obj.mesh.position.z -= step;
-      clamp(obj.mesh, obj.w, obj.h, obj.d);
+      floorClamp(obj.mesh, obj.h);
       break;
 
     case 'ArrowDown':
       e.preventDefault();
       if (e.shiftKey) obj.mesh.position.y -= step;
       else            obj.mesh.position.z += step;
-      clamp(obj.mesh, obj.w, obj.h, obj.d);
+      floorClamp(obj.mesh, obj.h);
       break;
   }
   refreshPlacedList();
@@ -875,7 +889,7 @@ function rotateObj(obj) {
       c.geometry = new THREE.EdgesGeometry(ng);
     }
   });
-  clamp(obj.mesh, obj.w, obj.h, obj.d);
+  floorClamp(obj.mesh, obj.h);
   // Update sel-name label
   if (selObj === obj) {
     document.getElementById('sel-name').textContent =
@@ -933,6 +947,17 @@ function updateVolUI() {
   else               bar.style.background = 'linear-gradient(90deg,#667eea,#764ba2)';
 }
 
+function isInsideContainer(obj) {
+  const { w: cw, h: ch, d: cd } = cDims;
+  const p = obj.mesh.position;
+  const e = 0.005; // small epsilon for float tolerance
+  return (
+    p.x - obj.w/2 >= -cw/2 - e && p.x + obj.w/2 <= cw/2 + e &&
+    p.y - obj.h/2 >= -e         && p.y + obj.h/2 <= ch   + e &&
+    p.z - obj.d/2 >= -cd/2 - e && p.z + obj.d/2 <= cd/2 + e
+  );
+}
+
 function refreshPlacedList() {
   const list = document.getElementById('placed-list');
   document.getElementById('pl-count').textContent = placed.length;
@@ -942,10 +967,22 @@ function refreshPlacedList() {
     return;
   }
 
+  const inside  = placed.filter(o =>  isInsideContainer(o));
+  const outside = placed.filter(o => !isInsideContainer(o));
+
   list.innerHTML = '';
-  placed.forEach((obj, idx) => {
+
+  function renderHeader(label, warn) {
+    const hdr = document.createElement('div');
+    hdr.className = 'pl-section-hdr' + (warn ? ' outside' : '');
+    hdr.textContent = label;
+    list.appendChild(hdr);
+  }
+
+  function renderItem(obj) {
+    const idx = placed.indexOf(obj);
     const el = document.createElement('div');
-    el.className = 'pl-item' + (obj === selObj ? ' sel' : '');
+    el.className = 'pl-item' + (obj === selObj ? ' sel' : '') + (isInsideContainer(obj) ? '' : ' outside');
     el.dataset.idx = idx;
     el.innerHTML = `
       <div class="pl-dot" style="background:${hex(obj.color)}"></div>
@@ -955,7 +992,13 @@ function refreshPlacedList() {
       </div>
       <div class="pl-rm" title="Remove">×</div>`;
     list.appendChild(el);
-  });
+  }
+
+  renderHeader(`Placed (${inside.length})`, false);
+  if (inside.length) inside.forEach(renderItem);
+
+  renderHeader(`Outside (${outside.length})`, true);
+  if (outside.length) outside.forEach(renderItem);
 }
 
 // ═══════════════════════════════════════════════════════════
