@@ -409,6 +409,7 @@ hr { border: none; border-top: 1px solid var(--border); }
       <kbd>LMB drag</kbd> move object<br>
       <kbd>R</kbd> rotate 90°<br>
       <kbd>↑↓←→</kbd> nudge 10 cm<br>
+      <kbd>Ctrl ↑↓←→</kbd> nudge 1 cm<br>
       <kbd>Shift ↑↓</kbd> move up / down<br>
       <kbd>Del</kbd> remove selected<br>
       <kbd>N</kbd> rename selected<br>
@@ -899,7 +900,7 @@ document.addEventListener('keydown', e => {
   if (!selObj) return;
 
   const obj  = selObj;
-  const step = 0.1;
+  const step = e.ctrlKey ? 0.01 : 0.1;
 
   switch (e.key) {
     case 'r': case 'R':
