@@ -40,7 +40,8 @@ body {
   flex-shrink: 0;
 }
 #left  { width: 200px; border-right: 1px solid var(--border); }
-#right { width: 215px; border-left:  1px solid var(--border); }
+#right { width: 215px; border-left: 1px solid var(--border); overflow-y: hidden; }
+#fur-list { overflow-y: auto; flex: 1; min-height: 0; scrollbar-width: thin; scrollbar-color: var(--border) transparent; }
 
 .sec-title {
   font-size: 10px;
