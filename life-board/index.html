@@ -1,0 +1,1064 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Life Board</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+:root {
+  --bg: #f1f5f9;
+  --surface: #ffffff;
+  --surface-muted: #f8fafc;
+  --border: #e2e8f0;
+  --text: #1e293b;
+  --text-muted: #94a3b8;
+  --accent: #4f46e5;
+  --accent-light: #eef2ff;
+  --col-width: 300px;
+  --radius: 8px;
+  --green: #10b981;
+  --red: #ef4444;
+  --amber-bg: #fef3c7;
+  --amber-text: #92400e;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+}
+
+/* ── App header ── */
+.header {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 0 20px;
+  height: 52px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.header h1 { font-size: 16px; font-weight: 700; color: var(--accent); margin-right: auto; }
+
+/* ── Buttons ── */
+.btn {
+  padding: 6px 13px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 13px;
+  font-family: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.12s;
+}
+.btn:hover { background: var(--bg); }
+.btn-primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+.btn-primary:hover { background: #4338ca; }
+.btn-sm { padding: 4px 10px; font-size: 12px; }
+.btn-icon { padding: 5px 8px; }
+.btn-danger { color: var(--red); border-color: #fecaca; }
+.btn-danger:hover { background: #fee2e2; }
+
+/* ── Board wrap (horizontal scroll) ── */
+.board-wrap {
+  overflow-x: auto;
+  padding: 20px;
+  min-height: calc(100vh - 52px);
+}
+
+/* ── Board: flex column, width fixed to 3 cols ── */
+.board {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: calc(3 * var(--col-width) + 2px);
+}
+
+/* ── Column header strip ── */
+.col-strip {
+  display: grid;
+  grid-template-columns: repeat(3, var(--col-width));
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  overflow: hidden;
+}
+.col-hd {
+  padding: 10px 14px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-right: 1px solid var(--border);
+}
+.col-hd:last-child { border-right: none; }
+.col-count {
+  background: var(--border);
+  color: var(--text-muted);
+  font-size: 11px;
+  padding: 1px 7px;
+  border-radius: 10px;
+  margin-left: auto;
+}
+
+/* ── Swimlane (one per epic) ── */
+.swimlane {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  overflow: hidden;
+}
+
+.swimlane-head {
+  padding: 10px 14px 12px;
+  background: var(--accent-light);
+  border-bottom: 1px solid #dde4ff;
+}
+
+.sl-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 0;
+}
+.sl-name {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--accent);
+  flex: 1;
+}
+.sl-dl-label {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 7px;
+  border-radius: 4px;
+}
+.sl-dl-ok     { background: #d1fae5; color: #065f46; }
+.sl-dl-warn   { background: #fef3c7; color: #92400e; }
+.sl-dl-danger { background: #fee2e2; color: #991b1b; }
+
+/* Epic timeline in swimlane header */
+.epic-tl { margin-top: 10px; }
+.epic-tl-bar {
+  position: relative;
+  height: 6px;
+  border-radius: 3px;
+  background: #dde4ff;
+  margin-bottom: 4px;
+}
+.epic-tl-fill {
+  position: absolute;
+  top: 0; left: 0; height: 100%;
+  border-radius: 3px;
+  width: 100%;
+}
+.epic-tl-fill.ok     { background: #34d399; }
+.epic-tl-fill.warn   { background: #fbbf24; }
+.epic-tl-fill.danger { background: #f87171; }
+.epic-tl-dot {
+  position: absolute;
+  top: 50%;
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  border: 2px solid white;
+  box-shadow: 0 0 0 1px rgba(0,0,0,0.12);
+}
+.epic-tl-dot.today    { background: var(--accent); left: 0; transform: translate(-50%,-50%); }
+.epic-tl-dot.deadline { background: var(--red);    right: 0; transform: translate(50%,-50%); }
+.epic-tl-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 10px;
+  color: #6366f1;
+  opacity: 0.8;
+}
+
+/* ── Swimlane body: 3 columns ── */
+.swimlane-body {
+  display: grid;
+  grid-template-columns: repeat(3, var(--col-width));
+}
+.sl-col {
+  padding: 10px;
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 60px;
+}
+.sl-col:last-child { border-right: none; }
+
+/* ── Lane labels within a column ── */
+.lane-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  padding: 2px 4px;
+}
+
+/* ── Card ── */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 11px;
+  transition: box-shadow 0.12s, border-color 0.12s;
+}
+.card:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.07); border-color: #cbd5e1; }
+.card.waiting { opacity: 0.6; }
+
+.card-title-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 4px;
+  margin-bottom: 5px;
+}
+.card-title-input {
+  flex: 1;
+  border: none;
+  border-bottom: 1px solid transparent;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: inherit;
+  color: var(--text);
+  background: transparent;
+  padding: 0 0 2px;
+  line-height: 1.4;
+  min-width: 0;
+  transition: border-color 0.12s;
+}
+.card-title-input:focus { outline: none; border-bottom-color: var(--accent); }
+.card-edit-btn {
+  flex-shrink: 0;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 13px;
+  padding: 1px 3px;
+  border-radius: 4px;
+  opacity: 0;
+  transition: opacity 0.12s, background 0.12s;
+  line-height: 1;
+}
+.card:hover .card-edit-btn { opacity: 0.5; }
+.card-edit-btn:hover { opacity: 1 !important; background: var(--bg); }
+
+.card-notes-input {
+  width: 100%;
+  border: none;
+  font-size: 12px;
+  font-family: inherit;
+  color: var(--text-muted);
+  background: transparent;
+  padding: 0;
+  resize: none;
+  line-height: 1.5;
+  overflow: hidden;
+  display: block;
+  min-height: 16px;
+  margin-bottom: 6px;
+}
+.card-notes-input:focus { outline: none; color: var(--text); }
+.card-notes-input::placeholder { color: var(--border); }
+
+.card-meta-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 5px;
+}
+.card-date-input {
+  font-size: 11px;
+  font-family: inherit;
+  color: var(--text-muted);
+  border: 1px solid transparent;
+  border-radius: 4px;
+  padding: 1px 3px;
+  background: transparent;
+  cursor: pointer;
+  transition: border-color 0.12s, background 0.12s;
+}
+.card-date-input:hover { border-color: var(--border); background: var(--bg); }
+.card-date-input:focus { outline: none; border-color: var(--accent); background: var(--surface); }
+.card-date-input::-webkit-calendar-picker-indicator { opacity: 0.4; cursor: pointer; }
+
+/* ── Badges ── */
+.badge { font-size: 11px; font-weight: 500; padding: 2px 7px; border-radius: 4px; }
+.badge-blocker { background: var(--amber-bg); color: var(--amber-text); }
+
+/* ── Card timeline strip ── */
+.tl-wrap { margin-top: 7px; }
+.tl-bar {
+  position: relative; height: 6px; border-radius: 3px;
+  background: var(--border); margin-bottom: 4px;
+}
+.tl-zone { position: absolute; top: 0; height: 100%; }
+.tl-zone.waiting       { background: #fcd34d; border-radius: 3px 0 0 3px; }
+.tl-zone.action-ok     { background: #34d399; }
+.tl-zone.action-warn   { background: #fbbf24; }
+.tl-zone.action-danger { background: #f87171; }
+.tl-zone.full { border-radius: 3px; }
+.tl-dot {
+  position: absolute; top: 50%;
+  width: 10px; height: 10px; border-radius: 50%;
+  border: 2px solid #fff; box-shadow: 0 0 0 1px rgba(0,0,0,0.12);
+  transform: translateY(-50%);
+}
+.tl-dot.today    { background: var(--accent); left: 0;  transform: translate(-50%,-50%); }
+.tl-dot.blocker  { background: #d97706; }
+.tl-dot.deadline { background: var(--red);   right: 0; transform: translate(50%,-50%); }
+.tl-labels {
+  display: flex; justify-content: space-between;
+  font-size: 10px; color: var(--text-muted); padding: 0 2px;
+}
+.tl-blocker-label { font-size: 10px; color: var(--amber-text); text-align: center; margin-top: 2px; }
+
+/* ── Drag and drop ── */
+.card { cursor: grab; }
+.card:active { cursor: grabbing; }
+.card.dragging { opacity: 0.35; }
+.sl-col.drag-over {
+  background: var(--accent-light);
+  outline: 2px dashed #a5b4fc;
+  outline-offset: -3px;
+  border-radius: var(--radius);
+}
+
+/* ── Card footer ── */
+.card-footer {
+  display: flex; align-items: center; gap: 6px;
+  margin-top: 9px; padding-top: 8px; border-top: 1px solid var(--border);
+}
+.card-moves { display: flex; gap: 4px; margin-left: auto; }
+
+/* ── Empty board ── */
+.board-empty {
+  text-align: center; padding: 60px 20px;
+  color: var(--text-muted); font-size: 14px;
+  width: calc(3 * var(--col-width) + 2px);
+}
+.board-empty strong { display: block; font-size: 16px; margin-bottom: 6px; color: var(--text); }
+
+/* ── Modal ── */
+.overlay {
+  position: fixed; inset: 0; background: rgba(15,23,42,0.4);
+  z-index: 200; display: flex; align-items: center; justify-content: center; padding: 20px;
+}
+.modal {
+  background: var(--surface); border-radius: 12px; padding: 24px;
+  width: 100%; max-width: 460px; max-height: 90vh; overflow-y: auto;
+  box-shadow: 0 24px 64px rgba(0,0,0,0.15);
+}
+.modal h2 { font-size: 16px; font-weight: 700; margin-bottom: 18px; }
+
+.fg { margin-bottom: 13px; }
+.fg label {
+  display: block; font-size: 11px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.06em;
+  color: var(--text-muted); margin-bottom: 5px;
+}
+.fg input, .fg textarea, .fg select {
+  width: 100%; padding: 8px 10px; border: 1px solid var(--border);
+  border-radius: 6px; font-size: 14px; font-family: inherit; color: var(--text); background: var(--surface);
+}
+.fg input:focus, .fg textarea:focus, .fg select:focus {
+  outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(79,70,229,0.08);
+}
+.fg textarea { resize: vertical; min-height: 72px; }
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+.modal-footer {
+  display: flex; align-items: center; gap: 8px;
+  margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--border);
+}
+.modal-footer .spacer { flex: 1; }
+
+.epic-item {
+  display: flex; align-items: center; gap: 8px;
+  padding: 10px 12px; border: 1px solid var(--border);
+  border-radius: 6px; margin-bottom: 6px; font-size: 13px;
+}
+.epic-item-name { flex: 1; font-weight: 600; }
+.epic-item-dl { font-size: 12px; color: var(--text-muted); }
+
+.section-title {
+  font-size: 11px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.07em; color: var(--text-muted); margin: 16px 0 8px;
+}
+.hint { font-size: 12px; color: var(--text-muted); line-height: 1.6; margin-bottom: 16px; }
+.empty-state { text-align: center; padding: 20px 12px; color: var(--text-muted); font-size: 12px; }
+
+/* ── Inline add inputs ── */
+.inline-wrap { margin-top: 4px; }
+.inline-input {
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  font-size: 13px;
+  font-family: inherit;
+  color: var(--text);
+  background: transparent;
+  transition: border-color 0.12s, background 0.12s;
+}
+.inline-input::placeholder { color: var(--text-muted); opacity: 0.6; }
+.inline-input:hover::placeholder { opacity: 1; }
+.inline-input:focus {
+  outline: none;
+  border-color: var(--accent);
+  background: var(--surface);
+  box-shadow: 0 0 0 3px rgba(79,70,229,0.08);
+}
+.inline-add-epic {
+  border: 1px dashed var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  padding: 4px 6px;
+}
+.inline-add-epic .inline-input:focus { background: transparent; box-shadow: none; border-color: var(--accent); }
+
+@media (max-width: 600px) {
+  .board-wrap { padding: 12px; }
+  .form-row { grid-template-columns: 1fr; }
+  .header { padding: 0 12px; gap: 6px; }
+}
+</style>
+</head>
+<body>
+
+<header class="header">
+  <h1>Life Board</h1>
+  <button class="btn btn-sm" id="btn-epics">Epics</button>
+  <button class="btn btn-sm btn-primary" id="btn-add-card">+ Card</button>
+  <button class="btn btn-sm btn-icon" id="btn-sync" title="Sync">⇅</button>
+  <button class="btn btn-sm btn-icon" id="btn-settings" title="Settings">⚙</button>
+</header>
+
+<div class="board-wrap">
+  <div class="board" id="board"></div>
+</div>
+
+<div id="modal-root"></div>
+
+<script>
+// ── State ────────────────────────────────────────────────────────────────────
+let S = { epics: [], settings: { pat: '', gistId: '' } };
+
+const uid       = () => Math.random().toString(36).slice(2, 9);
+const todayStr  = () => new Date().toISOString().slice(0, 10);
+
+function esc(s) {
+  return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function daysDiff(a, b) { return Math.round((new Date(b) - new Date(a)) / 86400000); }
+function fmtDate(d) {
+  if (!d) return '';
+  const [y, m, day] = d.split('-');
+  return `${day}/${m}/${y.slice(2)}`;
+}
+function daysLabel(d) {
+  const n = daysDiff(todayStr(), d);
+  if (n < 0)  return `${Math.abs(n)}d overdue`;
+  if (n === 0) return 'today';
+  if (n === 1) return 'tomorrow';
+  return `in ${n}d`;
+}
+function urgency(d) {
+  const n = daysDiff(todayStr(), d);
+  if (n < 0 || n <= 7) return 'danger';
+  if (n <= 21) return 'warn';
+  return 'ok';
+}
+function isBlocked(card) {
+  return !!(card.blocker?.date && daysDiff(todayStr(), card.blocker.date) > 0);
+}
+
+// ── Persistence ───────────────────────────────────────────────────────────────
+function persist() { localStorage.setItem('life-board-v1', JSON.stringify(S)); }
+function hydrate() {
+  try { const r = localStorage.getItem('life-board-v1'); if (r) S = JSON.parse(r); } catch (_) {}
+}
+
+// ── GitHub Gist ───────────────────────────────────────────────────────────────
+async function gistPush() {
+  const { pat, gistId } = S.settings;
+  if (!pat) return { ok: false, msg: 'No PAT configured. Go to Settings first.' };
+  const content = JSON.stringify({ epics: S.epics }, null, 2);
+  const headers = { Authorization: `token ${pat}`, 'Content-Type': 'application/json' };
+  try {
+    let res;
+    if (gistId) {
+      res = await fetch(`https://api.github.com/gists/${gistId}`, {
+        method: 'PATCH', headers,
+        body: JSON.stringify({ files: { 'life-board.json': { content } } })
+      });
+    } else {
+      res = await fetch('https://api.github.com/gists', {
+        method: 'POST', headers,
+        body: JSON.stringify({ description: 'Life Board', public: false, files: { 'life-board.json': { content } } })
+      });
+      if (res.ok) { const d = await res.json(); S.settings.gistId = d.id; persist(); return { ok: true, msg: `Created gist ${d.id}` }; }
+    }
+    return res.ok ? { ok: true, msg: 'Pushed.' } : { ok: false, msg: `API error ${res.status}` };
+  } catch (e) { return { ok: false, msg: e.message }; }
+}
+async function gistPull() {
+  const { pat, gistId } = S.settings;
+  if (!pat || !gistId) return { ok: false, msg: 'No PAT or Gist ID. Push first to create one.' };
+  try {
+    const res = await fetch(`https://api.github.com/gists/${gistId}`, { headers: { Authorization: `token ${pat}` } });
+    if (!res.ok) return { ok: false, msg: `API error ${res.status}` };
+    const d = await res.json();
+    const raw = d.files['life-board.json']?.content;
+    if (!raw) return { ok: false, msg: 'File not found in gist.' };
+    S.epics = JSON.parse(raw).epics;
+    persist(); render();
+    return { ok: true };
+  } catch (e) { return { ok: false, msg: e.message }; }
+}
+
+// ── Epic timeline (in swimlane header) ───────────────────────────────────────
+function renderEpicTimeline(deadline) {
+  const u = urgency(deadline);
+  const n = daysDiff(todayStr(), deadline);
+  if (n < 0) {
+    return `<div class="epic-tl">
+      <div class="epic-tl-bar" style="background:#fecaca;">
+        <div class="epic-tl-dot today" style="background:var(--red);"></div>
+      </div>
+      <div class="epic-tl-labels">
+        <span style="color:var(--red);font-weight:700;">Overdue ${Math.abs(n)}d</span>
+        <span>${fmtDate(deadline)}</span>
+      </div>
+    </div>`;
+  }
+  return `<div class="epic-tl">
+    <div class="epic-tl-bar">
+      <div class="epic-tl-fill ${u}"></div>
+      <div class="epic-tl-dot today"></div>
+      <div class="epic-tl-dot deadline"></div>
+    </div>
+    <div class="epic-tl-labels">
+      <span>Today</span>
+      <span>${fmtDate(deadline)} · ${daysLabel(deadline)}</span>
+    </div>
+  </div>`;
+}
+
+// ── Card timeline (within a card) ─────────────────────────────────────────────
+function renderCardTimeline(card) {
+  const hasDL = !!card.deadline;
+  if (!hasDL) return '';
+
+  const t = todayStr();
+  const totalDays = daysDiff(t, card.deadline);
+
+  if (totalDays < 0) {
+    return `<div class="tl-wrap">
+      <div class="tl-bar" style="background:#fecaca;">
+        <div class="tl-dot today" style="background:var(--red);"></div>
+      </div>
+      <div class="tl-labels"><span style="color:var(--red);font-weight:600;">Overdue ${Math.abs(totalDays)}d</span><span>${fmtDate(card.deadline)}</span></div>
+    </div>`;
+  }
+
+  const hasB  = !!(card.blocker?.date);
+  if (hasB) {
+    const bDiff = daysDiff(t, card.blocker.date);
+    if (bDiff > 0) {
+      const bPct = totalDays > 0 ? Math.min(98, Math.round(bDiff / totalDays * 100)) : 50;
+      const actionDays = totalDays - bDiff;
+      const aCls = actionDays <= 0 ? 'action-danger' : actionDays <= 7 ? 'action-danger' : actionDays <= 14 ? 'action-warn' : 'action-ok';
+      const bLabel = `${card.blocker.event ? esc(card.blocker.event) + ' · ' : ''}${fmtDate(card.blocker.date)}`;
+      return `<div class="tl-wrap">
+        <div class="tl-bar">
+          <div class="tl-zone waiting" style="left:0;width:${bPct}%;"></div>
+          <div class="tl-zone ${aCls}" style="left:${bPct}%;right:0;width:${100-bPct}%;border-radius:${bPct>1?'0 3px 3px 0':'3px'};"></div>
+          <div class="tl-dot today"></div>
+          <div class="tl-dot blocker" style="left:${bPct}%;transform:translate(-50%,-50%);"></div>
+          <div class="tl-dot deadline"></div>
+        </div>
+        <div class="tl-blocker-label">⏳ ${bLabel}</div>
+        <div class="tl-labels"><span>Today</span><span>${fmtDate(card.deadline)} (${daysLabel(card.deadline)})</span></div>
+      </div>`;
+    }
+  }
+
+  const u = urgency(card.deadline);
+  return `<div class="tl-wrap">
+    <div class="tl-bar">
+      <div class="tl-zone action-${u} full" style="left:0;right:0;width:100%;"></div>
+      <div class="tl-dot today"></div>
+      <div class="tl-dot deadline"></div>
+    </div>
+    <div class="tl-labels"><span>Today</span><span>${fmtDate(card.deadline)} (${daysLabel(card.deadline)})</span></div>
+  </div>`;
+}
+
+// ── Render ────────────────────────────────────────────────────────────────────
+function cardHtml(epicId, card) {
+  const blocked = isBlocked(card);
+  const blBadge = blocked
+    ? `<span class="badge badge-blocker">⏳ ${card.blocker.event ? esc(card.blocker.event)+' · ' : ''}${fmtDate(card.blocker.date)}</span>`
+    : '';
+
+  return `<div class="card${blocked?' waiting':''}" data-card-id="${card.id}"
+    draggable="true"
+    ondragstart="handleDragStart(event,'${epicId}','${card.id}')"
+    ondragend="handleDragEnd(event)">
+    <div class="card-title-row">
+      <input class="card-title-input" draggable="false" value="${esc(card.title)}"
+        onblur="saveInlineField('${epicId}','${card.id}','title',this)"
+        onkeydown="if(event.key==='Enter')this.blur()">
+      <button class="card-edit-btn" draggable="false" onclick="openEditCard('${epicId}','${card.id}')" title="Edit">✎</button>
+    </div>
+    <textarea class="card-notes-input" draggable="false" placeholder="Add notes…"
+      onblur="saveInlineField('${epicId}','${card.id}','notes',this)"
+      >${esc(card.notes||'')}</textarea>
+    <div class="card-meta-row">
+      <input type="date" class="card-date-input" draggable="false" value="${card.deadline||''}"
+        title="Due date"
+        onchange="saveInlineField('${epicId}','${card.id}','deadline',this)">
+      ${blBadge}
+    </div>
+    ${renderCardTimeline(card)}
+  </div>`;
+}
+
+function render() {
+  const active = S.epics.filter(e => !e.archived);
+  const counts = { todo: 0, doing: 0, done: 0 };
+  active.forEach(e => (e.cards||[]).forEach(c => { if (counts[c.status] !== undefined) counts[c.status]++; }));
+
+  const colStrip = `<div class="col-strip">
+    <div class="col-hd">Todo <span class="col-count">${counts.todo}</span></div>
+    <div class="col-hd">Doing <span class="col-count">${counts.doing}</span></div>
+    <div class="col-hd">Done <span class="col-count">${counts.done}</span></div>
+  </div>`;
+
+  const inlineEpic = `<div class="inline-add-epic">
+    <input class="inline-input" id="inline-epic-input" placeholder="Add epic…" onkeydown="handleInlineEpic(event)">
+  </div>`;
+
+  if (!active.length) {
+    document.getElementById('board').innerHTML = colStrip + inlineEpic;
+    return;
+  }
+
+  const swimlanes = active.map(epic => {
+    const dlU = epic.deadline ? urgency(epic.deadline) : null;
+    const dlBadge = epic.deadline
+      ? `<span class="sl-dl-label sl-dl-${dlU}">${daysLabel(epic.deadline)}</span>` : '';
+    const timeline = epic.deadline ? renderEpicTimeline(epic.deadline) : '';
+
+    const head = `<div class="swimlane-head">
+      <div class="sl-row">
+        <span class="sl-name">${esc(epic.name)}</span>
+        ${dlBadge}
+        <button class="btn btn-sm" onclick="openEditEpic('${epic.id}')">Edit</button>
+      </div>
+      ${timeline}
+    </div>`;
+
+    const cols = ['todo','doing','done'].map(status => {
+      const cards = (epic.cards||[]).filter(c => c.status === status);
+      const ready   = cards.filter(c => !isBlocked(c));
+      const waiting = cards.filter(c => isBlocked(c));
+      const showLabels = ready.length > 0 && waiting.length > 0;
+      return `<div class="sl-col"
+        ondragover="handleDragOver(event)"
+        ondragleave="handleDragLeave(event)"
+        ondrop="handleDrop(event,'${epic.id}','${status}')">
+        ${showLabels ? '<div class="lane-label">Ready</div>' : ''}
+        ${ready.map(c => cardHtml(epic.id, c)).join('')}
+        ${waiting.length ? '<div class="lane-label">Waiting</div>' : ''}
+        ${waiting.map(c => cardHtml(epic.id, c)).join('')}
+        <div class="inline-wrap">
+          <input class="inline-input" data-epic="${epic.id}" data-status="${status}"
+            placeholder="Add card…"
+            onkeydown="handleInlineCard(event,'${epic.id}','${status}')">
+        </div>
+      </div>`;
+    }).join('');
+
+    return `<div class="swimlane">${head}<div class="swimlane-body">${cols}</div></div>`;
+  }).join('');
+
+  document.getElementById('board').innerHTML = colStrip + swimlanes + inlineEpic;
+  requestAnimationFrame(resizeTextareas);
+}
+
+// ── Modal helpers ─────────────────────────────────────────────────────────────
+function showModal(html) {
+  const root = document.getElementById('modal-root');
+  root.innerHTML = `<div class="overlay" id="_ov">${html}</div>`;
+  root.querySelector('#_ov').addEventListener('click', e => { if (e.target.id === '_ov') closeModal(); });
+}
+function closeModal() { document.getElementById('modal-root').innerHTML = ''; }
+
+// ── Add card ──────────────────────────────────────────────────────────────────
+function openAddCard(preEpicId) {
+  const opts = S.epics.filter(e=>!e.archived).map(e=>`<option value="${e.id}" ${e.id===preEpicId?'selected':''}>${esc(e.name)}</option>`).join('');
+  if (!opts) { alert('Create an epic first (Epics button).'); return; }
+  showModal(`<div class="modal">
+    <h2>New Card</h2>
+    <div class="fg"><label>Epic</label><select id="f-epic">${opts}</select></div>
+    <div class="fg"><label>Title</label><input id="f-title" placeholder="What needs doing?" autofocus></div>
+    <div class="fg"><label>Notes</label><textarea id="f-notes" placeholder="Optional details..."></textarea></div>
+    <div class="fg"><label>Status</label><select id="f-status">
+      <option value="todo">Todo</option><option value="doing">Doing</option><option value="done">Done</option>
+    </select></div>
+    <div class="form-row">
+      <div class="fg"><label>Deadline</label><input id="f-dl" type="date"></div>
+      <div class="fg"><label>Blocked until</label><input id="f-bd" type="date"></div>
+    </div>
+    <div class="fg"><label>Blocker event name</label><input id="f-be" placeholder="e.g. Visa approval, Contract signed..."></div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal()">Cancel</button>
+      <div class="spacer"></div>
+      <button class="btn btn-primary" onclick="_submitCard()">Add Card</button>
+    </div>
+  </div>`);
+}
+function _submitCard() {
+  const epicId = document.getElementById('f-epic').value;
+  const title  = document.getElementById('f-title').value.trim();
+  if (!title) { alert('Title is required.'); return; }
+  const epic = S.epics.find(e=>e.id===epicId);
+  if (!epic) return;
+  const bd = document.getElementById('f-bd').value;
+  epic.cards = epic.cards||[];
+  epic.cards.push({ id: uid(), title,
+    notes:    document.getElementById('f-notes').value.trim(),
+    status:   document.getElementById('f-status').value,
+    deadline: document.getElementById('f-dl').value || null,
+    blocker:  bd ? { date: bd, event: document.getElementById('f-be').value.trim() } : null
+  });
+  persist(); render(); closeModal();
+}
+
+// ── Edit card ─────────────────────────────────────────────────────────────────
+function openEditCard(epicId, cardId) {
+  const epic = S.epics.find(e=>e.id===epicId);
+  const card = epic?.cards.find(c=>c.id===cardId);
+  if (!card) return;
+  showModal(`<div class="modal">
+    <h2>Edit Card</h2>
+    <div class="fg"><label>Title</label><input id="f-title" value="${esc(card.title)}" autofocus></div>
+    <div class="fg"><label>Notes</label><textarea id="f-notes">${esc(card.notes||'')}</textarea></div>
+    <div class="fg"><label>Status</label><select id="f-status">
+      <option value="todo" ${card.status==='todo'?'selected':''}>Todo</option>
+      <option value="doing" ${card.status==='doing'?'selected':''}>Doing</option>
+      <option value="done" ${card.status==='done'?'selected':''}>Done</option>
+    </select></div>
+    <div class="form-row">
+      <div class="fg"><label>Deadline</label><input id="f-dl" type="date" value="${card.deadline||''}"></div>
+      <div class="fg"><label>Blocked until</label><input id="f-bd" type="date" value="${card.blocker?.date||''}"></div>
+    </div>
+    <div class="fg"><label>Blocker event name</label><input id="f-be" value="${esc(card.blocker?.event||'')}" placeholder="e.g. Visa approval..."></div>
+    <div class="modal-footer">
+      <button class="btn btn-danger" onclick="_deleteCard('${epicId}','${cardId}')">Delete</button>
+      <div class="spacer"></div>
+      <button class="btn" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="_saveCard('${epicId}','${cardId}')">Save</button>
+    </div>
+  </div>`);
+}
+function _saveCard(epicId, cardId) {
+  const epic = S.epics.find(e=>e.id===epicId);
+  const card = epic?.cards.find(c=>c.id===cardId);
+  if (!card) return;
+  const title = document.getElementById('f-title').value.trim();
+  if (!title) { alert('Title is required.'); return; }
+  const bd = document.getElementById('f-bd').value;
+  card.title    = title;
+  card.notes    = document.getElementById('f-notes').value.trim();
+  card.status   = document.getElementById('f-status').value;
+  card.deadline = document.getElementById('f-dl').value || null;
+  card.blocker  = bd ? { date: bd, event: document.getElementById('f-be').value.trim() } : null;
+  persist(); render(); closeModal();
+}
+function _deleteCard(epicId, cardId) {
+  if (!confirm('Delete this card?')) return;
+  const epic = S.epics.find(e=>e.id===epicId);
+  if (!epic) return;
+  epic.cards = epic.cards.filter(c=>c.id!==cardId);
+  persist(); render(); closeModal();
+}
+
+// ── Move card ─────────────────────────────────────────────────────────────────
+function moveCard(epicId, cardId, dir) {
+  const epic = S.epics.find(e=>e.id===epicId);
+  const card = epic?.cards.find(c=>c.id===cardId);
+  if (!card) return;
+  const order = ['todo','doing','done'];
+  const idx = order.indexOf(card.status) + dir;
+  if (idx < 0 || idx >= order.length) return;
+  card.status = order[idx];
+  persist(); render();
+}
+
+// ── Epics ─────────────────────────────────────────────────────────────────────
+function openEpics() {
+  const active   = S.epics.filter(e=>!e.archived);
+  const archived = S.epics.filter(e=>e.archived);
+  const row = e => `<div class="epic-item">
+    <span class="epic-item-name">${esc(e.name)}</span>
+    <span class="epic-item-dl">${e.deadline?fmtDate(e.deadline):''}</span>
+    <button class="btn btn-sm" onclick="openEditEpic('${e.id}')">Edit</button>
+    ${!e.archived
+      ? `<button class="btn btn-sm" onclick="_archiveEpic('${e.id}')">Archive</button>`
+      : `<button class="btn btn-sm" onclick="_restoreEpic('${e.id}')">Restore</button>`}
+  </div>`;
+  showModal(`<div class="modal">
+    <h2>Epics</h2>
+    ${active.map(row).join('') || '<div class="empty-state">No active epics yet.</div>'}
+    ${archived.length ? `<div class="section-title">Archived</div>${archived.map(row).join('')}` : ''}
+    <div class="modal-footer">
+      <button class="btn btn-primary" onclick="openAddEpic()">+ New Epic</button>
+      <div class="spacer"></div>
+      <button class="btn" onclick="closeModal()">Close</button>
+    </div>
+  </div>`);
+}
+function openAddEpic() {
+  showModal(`<div class="modal">
+    <h2>New Epic</h2>
+    <div class="fg"><label>Name</label><input id="f-en" placeholder="e.g. Move to new city" autofocus></div>
+    <div class="fg"><label>Deadline</label><input id="f-ed" type="date"></div>
+    <div class="modal-footer">
+      <button class="btn" onclick="openEpics()">Back</button>
+      <div class="spacer"></div>
+      <button class="btn btn-primary" onclick="_submitEpic()">Create</button>
+    </div>
+  </div>`);
+}
+function _submitEpic() {
+  const name = document.getElementById('f-en').value.trim();
+  if (!name) { alert('Name is required.'); return; }
+  S.epics.push({ id: uid(), name, deadline: document.getElementById('f-ed').value||null, archived: false, cards: [] });
+  persist(); render(); openEpics();
+}
+function openEditEpic(epicId) {
+  const e = S.epics.find(ep=>ep.id===epicId);
+  if (!e) return;
+  showModal(`<div class="modal">
+    <h2>Edit Epic</h2>
+    <div class="fg"><label>Name</label><input id="f-en" value="${esc(e.name)}" autofocus></div>
+    <div class="fg"><label>Deadline</label><input id="f-ed" type="date" value="${e.deadline||''}"></div>
+    <div class="modal-footer">
+      <button class="btn btn-danger" onclick="_deleteEpic('${epicId}')">Delete</button>
+      <div class="spacer"></div>
+      <button class="btn" onclick="openEpics()">Back</button>
+      <button class="btn btn-primary" onclick="_saveEpic('${epicId}')">Save</button>
+    </div>
+  </div>`);
+}
+function _saveEpic(epicId) {
+  const e = S.epics.find(ep=>ep.id===epicId);
+  if (!e) return;
+  const name = document.getElementById('f-en').value.trim();
+  if (!name) { alert('Name is required.'); return; }
+  e.name = name;
+  e.deadline = document.getElementById('f-ed').value || null;
+  persist(); render(); closeModal();
+}
+function _deleteEpic(epicId) {
+  const e = S.epics.find(ep=>ep.id===epicId);
+  if (!e) return;
+  const n = (e.cards||[]).length;
+  if (!confirm(`Delete "${e.name}"${n?` and its ${n} card(s)`:''}?`)) return;
+  S.epics = S.epics.filter(ep=>ep.id!==epicId);
+  persist(); render(); closeModal();
+}
+function _archiveEpic(epicId) {
+  const e = S.epics.find(ep=>ep.id===epicId);
+  if (e) { e.archived = true; persist(); render(); openEpics(); }
+}
+function _restoreEpic(epicId) {
+  const e = S.epics.find(ep=>ep.id===epicId);
+  if (e) { e.archived = false; persist(); render(); openEpics(); }
+}
+
+// ── Settings ──────────────────────────────────────────────────────────────────
+function openSettings() {
+  showModal(`<div class="modal">
+    <h2>Settings — Gist Sync</h2>
+    <p class="hint">Create a GitHub Personal Access Token with <strong>gist</strong> scope. Stored only in your browser's localStorage.</p>
+    <div class="fg"><label>Personal Access Token</label><input id="f-pat" type="password" value="${esc(S.settings.pat||'')}" placeholder="ghp_..."></div>
+    <div class="fg"><label>Gist ID <span style="font-weight:400;text-transform:none;">(auto-created on first push)</span></label>
+      <input id="f-gid" value="${esc(S.settings.gistId||'')}" placeholder="leave blank to create new"></div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal()">Cancel</button>
+      <div class="spacer"></div>
+      <button class="btn btn-primary" onclick="_saveSettings()">Save</button>
+    </div>
+  </div>`);
+}
+function _saveSettings() {
+  S.settings.pat    = document.getElementById('f-pat').value.trim();
+  S.settings.gistId = document.getElementById('f-gid').value.trim();
+  persist(); closeModal();
+}
+
+// ── Sync ──────────────────────────────────────────────────────────────────────
+function openSync() {
+  showModal(`<div class="modal">
+    <h2>Sync with GitHub Gist</h2>
+    <p class="hint">Push sends your data to GitHub Gist. Pull replaces local data with the Gist version. Configure your PAT in Settings first.</p>
+    <div id="sync-msg" style="font-size:13px;min-height:20px;"></div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal()">Close</button>
+      <div class="spacer"></div>
+      <button class="btn" onclick="_doPull()">↓ Pull</button>
+      <button class="btn btn-primary" onclick="_doPush()">↑ Push</button>
+    </div>
+  </div>`);
+}
+function _syncMsg(msg, ok) {
+  const el = document.getElementById('sync-msg');
+  if (el) el.innerHTML = `<span style="color:${ok?'var(--green)':'var(--red)'}">${esc(msg)}</span>`;
+}
+async function _doPush() { _syncMsg('Pushing…', true); const r = await gistPush(); _syncMsg(r.ok?(r.msg||'Pushed.'):'Error: '+r.msg, r.ok); }
+async function _doPull() { _syncMsg('Pulling…', true); const r = await gistPull(); _syncMsg(r.ok?'Pulled successfully.':'Error: '+r.msg, r.ok); }
+
+// ── Drag and drop ────────────────────────────────────────────────────────────
+function handleDragStart(e, epicId, cardId) {
+  e.dataTransfer.setData('application/json', JSON.stringify({epicId, cardId}));
+  e.dataTransfer.effectAllowed = 'move';
+  setTimeout(() => {
+    const el = document.querySelector(`[data-card-id="${cardId}"]`);
+    if (el) el.classList.add('dragging');
+  }, 0);
+}
+
+function handleDragEnd(e) {
+  document.querySelectorAll('.dragging,.drag-over').forEach(el =>
+    el.classList.remove('dragging','drag-over')
+  );
+}
+
+function handleDragOver(e) {
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'move';
+  e.currentTarget.classList.add('drag-over');
+}
+
+function handleDragLeave(e) {
+  if (!e.currentTarget.contains(e.relatedTarget))
+    e.currentTarget.classList.remove('drag-over');
+}
+
+function handleDrop(e, targetEpicId, targetStatus) {
+  e.preventDefault();
+  e.currentTarget.classList.remove('drag-over');
+  let payload;
+  try { payload = JSON.parse(e.dataTransfer.getData('application/json')); } catch { return; }
+  const {epicId, cardId} = payload;
+
+  const srcEpic = S.epics.find(ep => ep.id === epicId);
+  const card = srcEpic?.cards.find(c => c.id === cardId);
+  if (!card) return;
+  if (epicId === targetEpicId && card.status === targetStatus) return;
+
+  if (epicId !== targetEpicId) {
+    srcEpic.cards = srcEpic.cards.filter(c => c.id !== cardId);
+    card.status = targetStatus;
+    const tgt = S.epics.find(ep => ep.id === targetEpicId);
+    if (tgt) { tgt.cards = tgt.cards || []; tgt.cards.push(card); }
+  } else {
+    card.status = targetStatus;
+  }
+  persist();
+  render();
+}
+
+// ── Inline field save ─────────────────────────────────────────────────────────
+function saveInlineField(epicId, cardId, field, el) {
+  const epic = S.epics.find(e => e.id === epicId);
+  const card = epic?.cards.find(c => c.id === cardId);
+  if (!card) return;
+  let val;
+  if (field === 'deadline') {
+    val = el.value || null;
+  } else if (field === 'notes') {
+    val = el.value.trim() || null;
+  } else {
+    val = el.value.trim();
+    if (!val) { el.value = card.title; return; } // reject empty title
+  }
+  if (card[field] === val) return;
+  card[field] = val;
+  persist();
+  render();
+}
+
+function resizeTextareas() {
+  document.querySelectorAll('.card-notes-input').forEach(ta => {
+    ta.style.height = 'auto';
+    ta.style.height = ta.scrollHeight + 'px';
+  });
+}
+
+// ── Inline add handlers ───────────────────────────────────────────────────────
+function handleInlineCard(e, epicId, status) {
+  if (e.key === 'Enter') {
+    const title = e.target.value.trim();
+    if (!title) return;
+    const epic = S.epics.find(ep => ep.id === epicId);
+    if (!epic) return;
+    epic.cards = epic.cards || [];
+    epic.cards.push({ id: uid(), title, notes: '', status, deadline: null, blocker: null });
+    persist();
+    render();
+    // Re-focus same column's input after re-render
+    const input = document.querySelector(`.inline-input[data-epic="${epicId}"][data-status="${status}"]`);
+    if (input) input.focus();
+  } else if (e.key === 'Escape') {
+    e.target.value = '';
+    e.target.blur();
+  }
+}
+
+function handleInlineEpic(e) {
+  if (e.key === 'Enter') {
+    const title = e.target.value.trim();
+    if (!title) return;
+    S.epics.push({ id: uid(), name: title, deadline: null, archived: false, cards: [] });
+    persist();
+    render();
+    const input = document.getElementById('inline-epic-input');
+    if (input) input.focus();
+  } else if (e.key === 'Escape') {
+    e.target.value = '';
+    e.target.blur();
+  }
+}
+
+// ── Wire up ───────────────────────────────────────────────────────────────────
+document.getElementById('btn-epics').addEventListener('click', openEpics);
+document.getElementById('btn-add-card').addEventListener('click', () => openAddCard());
+document.getElementById('btn-sync').addEventListener('click', openSync);
+document.getElementById('btn-settings').addEventListener('click', openSettings);
+
+hydrate();
+render();
+</script>
+</body>
+</html>
