@@ -33,31 +33,20 @@ body {
 
 /* ── App header ── */
 .header {
-  position: sticky;
-  top: 0;
-  z-index: 100;
+  position: sticky; top: 0; z-index: 100;
   background: var(--surface);
   border-bottom: 1px solid var(--border);
-  padding: 0 20px;
-  height: 52px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
+  padding: 0 20px; height: 52px;
+  display: flex; align-items: center; gap: 10px;
 }
 .header h1 { font-size: 16px; font-weight: 700; color: var(--accent); margin-right: auto; }
 
 /* ── Buttons ── */
 .btn {
-  padding: 6px 13px;
-  border-radius: 6px;
-  border: 1px solid var(--border);
-  background: var(--surface);
-  color: var(--text);
-  font-size: 13px;
-  font-family: inherit;
-  cursor: pointer;
-  white-space: nowrap;
-  transition: background 0.12s;
+  padding: 6px 13px; border-radius: 6px;
+  border: 1px solid var(--border); background: var(--surface);
+  color: var(--text); font-size: 13px; font-family: inherit;
+  cursor: pointer; white-space: nowrap; transition: background 0.12s;
 }
 .btn:hover { background: var(--bg); }
 .btn-primary { background: var(--accent); color: #fff; border-color: var(--accent); }
@@ -67,231 +56,247 @@ body {
 .btn-danger { color: var(--red); border-color: #fecaca; }
 .btn-danger:hover { background: #fee2e2; }
 
-/* ── Board wrap (horizontal scroll) ── */
-.board-wrap {
-  overflow-x: auto;
-  padding: 20px;
-  min-height: calc(100vh - 52px);
+/* ── Events section ── */
+.events-section {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  position: sticky; top: 52px; z-index: 90;
+}
+.events-hd {
+  padding: 5px 20px;
+  font-size: 10px; font-weight: 700;
+  letter-spacing: 0.07em; text-transform: uppercase;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--border);
+  user-select: none;
+}
+.events-scroll {
+  overflow-x: auto; overflow-y: hidden;
+  height: 88px; cursor: crosshair; user-select: none;
+  scrollbar-width: none;
+}
+.events-scroll::-webkit-scrollbar { display: none; }
+.events-tl {
+  position: relative; height: 88px;
 }
 
-/* ── Board: flex column, width fixed to 3 cols ── */
+/* Full-height day columns — provide hover for the entire column */
+.ev-day-col {
+  position: absolute; top: 0; width: 20px; height: 88px;
+  border-right: 1px solid rgba(0,0,0,0.05);
+}
+.ev-day-col:hover { background: rgba(79,70,229,0.07); }
+.ev-day-num {
+  position: absolute; top: 16px; left: 0; right: 0;
+  height: 16px; display: flex; align-items: center; justify-content: center;
+  font-size: 9px; color: var(--text-muted); pointer-events: none;
+}
+.ev-day-we { background: rgba(0,0,0,0.04); }
+.ev-day-col:hover { background: rgba(79,70,229,0.08); }
+.ev-day-ms { border-left: 2px solid #94a3b8; }
+.ev-day-today { background: var(--accent-light); }
+.ev-day-today .ev-day-num { color: var(--accent); font-weight: 700; }
+.ev-day-today:hover { background: rgba(79,70,229,0.12); }
+
+/* Month header overlay (pointer-events:none so hover reaches day cols beneath) */
+.ev-months-row {
+  position: absolute; top: 0; left: 0; height: 16px;
+  pointer-events: none; z-index: 3;
+}
+.ev-month-span {
+  position: absolute; top: 0; height: 16px;
+  font-size: 9px; font-weight: 700; letter-spacing: 0.05em;
+  color: var(--text-muted); background: rgba(255,255,255,0.85);
+  padding: 0 5px; display: flex; align-items: center;
+  border-right: 1px solid var(--border);
+  white-space: nowrap; overflow: hidden;
+}
+
+/* Horizontal divider lines */
+.ev-row-divider {
+  position: absolute; left: 0; right: 0; height: 1px;
+  background: var(--border); pointer-events: none; z-index: 3;
+}
+
+/* Today vertical line */
+.ev-today {
+  position: absolute; top: 32px; bottom: 2px; width: 1px;
+  background: var(--accent); opacity: 0.5;
+  transform: translateX(-50%); pointer-events: none; z-index: 2;
+}
+
+/* Event axis */
+.ev-axis {
+  position: absolute; top: 70px; left: 0; right: 0;
+  height: 1px; background: var(--border); pointer-events: none; z-index: 2;
+}
+
+/* Event markers */
+.ev-marker {
+  position: absolute; top: 0; bottom: 0;
+  transform: translateX(-50%); pointer-events: none; z-index: 4;
+}
+.ev-chip {
+  position: absolute; top: 34px; left: 50%; transform: translateX(-50%);
+  background: var(--amber-bg); border: 1px solid #fcd34d; border-radius: 4px;
+  padding: 2px 5px; font-size: 10px; font-weight: 600; color: var(--amber-text);
+  white-space: nowrap; display: flex; align-items: center; gap: 4px;
+  pointer-events: auto; cursor: default;
+}
+.ev-chip-btns { display: none; gap: 2px; }
+.ev-marker:hover .ev-chip-btns { display: flex; }
+.ev-chip-btn {
+  border: none; background: transparent; cursor: pointer;
+  color: var(--amber-text); font-size: 10px; padding: 0; line-height: 1; opacity: 0.6;
+}
+.ev-chip-btn:hover { opacity: 1; }
+.ev-vline {
+  position: absolute; top: 56px; left: 50%; width: 1px; height: 14px;
+  background: #fcd34d; transform: translateX(-50%); pointer-events: none;
+}
+.ev-dot {
+  position: absolute; top: 66px; left: 50%;
+  width: 8px; height: 8px; border-radius: 50%;
+  background: #f59e0b; border: 2px solid white;
+  box-shadow: 0 0 0 1.5px #f59e0b;
+  transform: translateX(-50%); pointer-events: auto; cursor: pointer;
+}
+/* inline event creation input */
+.ev-input-wrap {
+  position: absolute; top: 36px; transform: translateX(-50%);
+  z-index: 10; pointer-events: auto;
+}
+.ev-name-input {
+  border: 1px solid var(--accent); border-radius: 4px;
+  padding: 3px 8px; font-size: 11px; font-family: inherit;
+  width: 140px; background: white;
+  box-shadow: 0 2px 10px rgba(79,70,229,0.2);
+}
+.ev-name-input:focus { outline: none; }
+
+/* ── Board wrap ── */
+.board-wrap { overflow-x: auto; padding: 20px; }
 .board {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
+  display: flex; flex-direction: column; gap: 10px;
   width: calc(3 * var(--col-width) + 2px);
 }
 
 /* ── Column header strip ── */
 .col-strip {
-  display: grid;
-  grid-template-columns: repeat(3, var(--col-width));
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  background: var(--surface);
-  overflow: hidden;
+  display: grid; grid-template-columns: repeat(3, var(--col-width));
+  border: 1px solid var(--border); border-radius: var(--radius);
+  background: var(--surface); overflow: hidden;
 }
 .col-hd {
-  padding: 10px 14px;
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.07em;
-  text-transform: uppercase;
-  color: var(--text-muted);
-  display: flex;
-  align-items: center;
-  gap: 8px;
+  padding: 10px 14px; font-size: 11px; font-weight: 700;
+  letter-spacing: 0.07em; text-transform: uppercase; color: var(--text-muted);
+  display: flex; align-items: center; gap: 8px;
   border-right: 1px solid var(--border);
 }
 .col-hd:last-child { border-right: none; }
 .col-count {
-  background: var(--border);
-  color: var(--text-muted);
-  font-size: 11px;
-  padding: 1px 7px;
-  border-radius: 10px;
-  margin-left: auto;
+  background: var(--border); color: var(--text-muted);
+  font-size: 11px; padding: 1px 7px; border-radius: 10px; margin-left: auto;
 }
 
-/* ── Swimlane (one per epic) ── */
+/* ── Swimlane ── */
 .swimlane {
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  background: var(--surface);
-  overflow: hidden;
+  border: 1px solid var(--border); border-radius: var(--radius);
+  background: var(--surface); overflow: hidden;
 }
-
 .swimlane-head {
   padding: 10px 14px 12px;
-  background: var(--accent-light);
-  border-bottom: 1px solid #dde4ff;
+  background: var(--accent-light); border-bottom: 1px solid #dde4ff;
 }
-
-.sl-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-bottom: 0;
-}
-.sl-name {
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--accent);
-  flex: 1;
-}
-.sl-dl-label {
-  font-size: 11px;
-  font-weight: 600;
-  padding: 2px 7px;
-  border-radius: 4px;
-}
+.sl-row { display: flex; align-items: center; gap: 10px; }
+.sl-name { font-size: 13px; font-weight: 700; color: var(--accent); flex: 1; }
+.sl-dl-label { font-size: 11px; font-weight: 600; padding: 2px 7px; border-radius: 4px; }
 .sl-dl-ok     { background: #d1fae5; color: #065f46; }
 .sl-dl-warn   { background: #fef3c7; color: #92400e; }
 .sl-dl-danger { background: #fee2e2; color: #991b1b; }
 
-/* Epic timeline in swimlane header */
+/* Epic timeline */
 .epic-tl { margin-top: 10px; }
 .epic-tl-bar {
-  position: relative;
-  height: 6px;
-  border-radius: 3px;
-  background: #dde4ff;
-  margin-bottom: 4px;
+  position: relative; height: 6px; border-radius: 3px;
+  background: #dde4ff; margin-bottom: 4px;
 }
-.epic-tl-fill {
-  position: absolute;
-  top: 0; left: 0; height: 100%;
-  border-radius: 3px;
-  width: 100%;
-}
+.epic-tl-fill { position: absolute; top: 0; left: 0; height: 100%; border-radius: 3px; width: 100%; }
 .epic-tl-fill.ok     { background: #34d399; }
 .epic-tl-fill.warn   { background: #fbbf24; }
 .epic-tl-fill.danger { background: #f87171; }
 .epic-tl-dot {
-  position: absolute;
-  top: 50%;
-  width: 10px; height: 10px;
-  border-radius: 50%;
-  border: 2px solid white;
-  box-shadow: 0 0 0 1px rgba(0,0,0,0.12);
+  position: absolute; top: 50%;
+  width: 10px; height: 10px; border-radius: 50%;
+  border: 2px solid white; box-shadow: 0 0 0 1px rgba(0,0,0,0.12);
 }
 .epic-tl-dot.today    { background: var(--accent); left: 0; transform: translate(-50%,-50%); }
 .epic-tl-dot.deadline { background: var(--red);    right: 0; transform: translate(50%,-50%); }
 .epic-tl-labels {
-  display: flex;
-  justify-content: space-between;
-  font-size: 10px;
-  color: #6366f1;
-  opacity: 0.8;
+  display: flex; justify-content: space-between;
+  font-size: 10px; color: #6366f1; opacity: 0.8;
 }
 
-/* ── Swimlane body: 3 columns ── */
-.swimlane-body {
-  display: grid;
-  grid-template-columns: repeat(3, var(--col-width));
-}
+/* ── Swimlane body ── */
+.swimlane-body { display: grid; grid-template-columns: repeat(3, var(--col-width)); }
 .sl-col {
-  padding: 10px;
-  border-right: 1px solid var(--border);
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  min-height: 60px;
+  padding: 10px; border-right: 1px solid var(--border);
+  display: flex; flex-direction: column; gap: 8px; min-height: 60px;
 }
 .sl-col:last-child { border-right: none; }
 
-/* ── Lane labels within a column ── */
 .lane-label {
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--text-muted);
-  padding: 2px 4px;
+  font-size: 10px; font-weight: 700; letter-spacing: 0.08em;
+  text-transform: uppercase; color: var(--text-muted); padding: 2px 4px;
 }
 
 /* ── Card ── */
 .card {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 11px;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 11px;
   transition: box-shadow 0.12s, border-color 0.12s;
+  cursor: grab;
 }
+.card:active { cursor: grabbing; }
 .card:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.07); border-color: #cbd5e1; }
 .card.waiting { opacity: 0.6; }
+.card.dragging { opacity: 0.35; }
 
-.card-title-row {
-  display: flex;
-  align-items: flex-start;
-  gap: 4px;
-  margin-bottom: 5px;
-}
+.card-title-row { display: flex; align-items: flex-start; gap: 4px; margin-bottom: 5px; }
 .card-title-input {
-  flex: 1;
-  border: none;
+  flex: 1; min-width: 0; border: none;
   border-bottom: 1px solid transparent;
-  font-size: 13px;
-  font-weight: 600;
-  font-family: inherit;
-  color: var(--text);
-  background: transparent;
-  padding: 0 0 2px;
-  line-height: 1.4;
-  min-width: 0;
-  transition: border-color 0.12s;
+  font-size: 13px; font-weight: 600; font-family: inherit;
+  color: var(--text); background: transparent;
+  padding: 0 0 2px; line-height: 1.4; transition: border-color 0.12s;
 }
 .card-title-input:focus { outline: none; border-bottom-color: var(--accent); }
 .card-edit-btn {
-  flex-shrink: 0;
-  border: none;
-  background: transparent;
-  color: var(--text-muted);
-  cursor: pointer;
-  font-size: 13px;
-  padding: 1px 3px;
-  border-radius: 4px;
-  opacity: 0;
-  transition: opacity 0.12s, background 0.12s;
-  line-height: 1;
+  flex-shrink: 0; border: none; background: transparent;
+  color: var(--text-muted); cursor: pointer; font-size: 13px;
+  padding: 1px 3px; border-radius: 4px; opacity: 0;
+  transition: opacity 0.12s, background 0.12s; line-height: 1;
 }
 .card:hover .card-edit-btn { opacity: 0.5; }
 .card-edit-btn:hover { opacity: 1 !important; background: var(--bg); }
 
 .card-notes-input {
-  width: 100%;
-  border: none;
-  font-size: 12px;
-  font-family: inherit;
-  color: var(--text-muted);
-  background: transparent;
-  padding: 0;
-  resize: none;
-  line-height: 1.5;
-  overflow: hidden;
-  display: block;
-  min-height: 16px;
-  margin-bottom: 6px;
+  width: 100%; border: none; font-size: 12px; font-family: inherit;
+  color: var(--text-muted); background: transparent; padding: 0;
+  resize: none; line-height: 1.5; overflow: hidden;
+  display: block; min-height: 16px; margin-bottom: 6px;
 }
 .card-notes-input:focus { outline: none; color: var(--text); }
 .card-notes-input::placeholder { color: var(--border); }
 
 .card-meta-row {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  flex-wrap: wrap;
-  margin-bottom: 5px;
+  display: flex; align-items: center; gap: 6px;
+  flex-wrap: wrap; margin-bottom: 5px;
 }
 .card-date-input {
-  font-size: 11px;
-  font-family: inherit;
-  color: var(--text-muted);
-  border: 1px solid transparent;
-  border-radius: 4px;
-  padding: 1px 3px;
-  background: transparent;
-  cursor: pointer;
+  font-size: 11px; font-family: inherit; color: var(--text-muted);
+  border: 1px solid transparent; border-radius: 4px;
+  padding: 1px 3px; background: transparent; cursor: pointer;
   transition: border-color 0.12s, background 0.12s;
 }
 .card-date-input:hover { border-color: var(--border); background: var(--bg); }
@@ -329,31 +334,40 @@ body {
 }
 .tl-blocker-label { font-size: 10px; color: var(--amber-text); text-align: center; margin-top: 2px; }
 
-/* ── Drag and drop ── */
-.card { cursor: grab; }
-.card:active { cursor: grabbing; }
-.card.dragging { opacity: 0.35; }
+/* ── Drag over ── */
 .sl-col.drag-over {
   background: var(--accent-light);
-  outline: 2px dashed #a5b4fc;
-  outline-offset: -3px;
+  outline: 2px dashed #a5b4fc; outline-offset: -3px;
   border-radius: var(--radius);
 }
 
-/* ── Card footer ── */
-.card-footer {
-  display: flex; align-items: center; gap: 6px;
-  margin-top: 9px; padding-top: 8px; border-top: 1px solid var(--border);
-}
-.card-moves { display: flex; gap: 4px; margin-left: auto; }
-
-/* ── Empty board ── */
+/* ── Board empty ── */
 .board-empty {
   text-align: center; padding: 60px 20px;
   color: var(--text-muted); font-size: 14px;
   width: calc(3 * var(--col-width) + 2px);
 }
 .board-empty strong { display: block; font-size: 16px; margin-bottom: 6px; color: var(--text); }
+
+/* ── Inline add ── */
+.inline-wrap { margin-top: 4px; }
+.inline-input {
+  width: 100%; padding: 6px 8px;
+  border: 1px solid transparent; border-radius: 6px;
+  font-size: 13px; font-family: inherit; color: var(--text);
+  background: transparent; transition: border-color 0.12s, background 0.12s;
+}
+.inline-input::placeholder { color: var(--text-muted); opacity: 0.6; }
+.inline-input:hover::placeholder { opacity: 1; }
+.inline-input:focus {
+  outline: none; border-color: var(--accent);
+  background: var(--surface); box-shadow: 0 0 0 3px rgba(79,70,229,0.08);
+}
+.inline-add-epic {
+  border: 1px dashed var(--border); border-radius: var(--radius);
+  background: var(--surface); padding: 4px 6px;
+}
+.inline-add-epic .inline-input:focus { background: transparent; box-shadow: none; }
 
 /* ── Modal ── */
 .overlay {
@@ -366,7 +380,6 @@ body {
   box-shadow: 0 24px 64px rgba(0,0,0,0.15);
 }
 .modal h2 { font-size: 16px; font-weight: 700; margin-bottom: 18px; }
-
 .fg { margin-bottom: 13px; }
 .fg label {
   display: block; font-size: 11px; font-weight: 700;
@@ -375,20 +388,19 @@ body {
 }
 .fg input, .fg textarea, .fg select {
   width: 100%; padding: 8px 10px; border: 1px solid var(--border);
-  border-radius: 6px; font-size: 14px; font-family: inherit; color: var(--text); background: var(--surface);
+  border-radius: 6px; font-size: 14px; font-family: inherit;
+  color: var(--text); background: var(--surface);
 }
 .fg input:focus, .fg textarea:focus, .fg select:focus {
   outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(79,70,229,0.08);
 }
 .fg textarea { resize: vertical; min-height: 72px; }
 .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-
 .modal-footer {
   display: flex; align-items: center; gap: 8px;
   margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--border);
 }
 .modal-footer .spacer { flex: 1; }
-
 .epic-item {
   display: flex; align-items: center; gap: 8px;
   padding: 10px 12px; border: 1px solid var(--border);
@@ -396,42 +408,12 @@ body {
 }
 .epic-item-name { flex: 1; font-weight: 600; }
 .epic-item-dl { font-size: 12px; color: var(--text-muted); }
-
 .section-title {
   font-size: 11px; font-weight: 700; text-transform: uppercase;
   letter-spacing: 0.07em; color: var(--text-muted); margin: 16px 0 8px;
 }
 .hint { font-size: 12px; color: var(--text-muted); line-height: 1.6; margin-bottom: 16px; }
 .empty-state { text-align: center; padding: 20px 12px; color: var(--text-muted); font-size: 12px; }
-
-/* ── Inline add inputs ── */
-.inline-wrap { margin-top: 4px; }
-.inline-input {
-  width: 100%;
-  padding: 6px 8px;
-  border: 1px solid transparent;
-  border-radius: 6px;
-  font-size: 13px;
-  font-family: inherit;
-  color: var(--text);
-  background: transparent;
-  transition: border-color 0.12s, background 0.12s;
-}
-.inline-input::placeholder { color: var(--text-muted); opacity: 0.6; }
-.inline-input:hover::placeholder { opacity: 1; }
-.inline-input:focus {
-  outline: none;
-  border-color: var(--accent);
-  background: var(--surface);
-  box-shadow: 0 0 0 3px rgba(79,70,229,0.08);
-}
-.inline-add-epic {
-  border: 1px dashed var(--border);
-  border-radius: var(--radius);
-  background: var(--surface);
-  padding: 4px 6px;
-}
-.inline-add-epic .inline-input:focus { background: transparent; box-shadow: none; border-color: var(--accent); }
 
 @media (max-width: 600px) {
   .board-wrap { padding: 12px; }
@@ -445,10 +427,13 @@ body {
 <header class="header">
   <h1>Life Board</h1>
   <button class="btn btn-sm" id="btn-epics">Epics</button>
+  <button class="btn btn-sm" id="btn-events">Events</button>
   <button class="btn btn-sm btn-primary" id="btn-add-card">+ Card</button>
   <button class="btn btn-sm btn-icon" id="btn-sync" title="Sync">⇅</button>
   <button class="btn btn-sm btn-icon" id="btn-settings" title="Settings">⚙</button>
 </header>
+
+<div id="events-wrap"></div>
 
 <div class="board-wrap">
   <div class="board" id="board"></div>
@@ -458,15 +443,20 @@ body {
 
 <script>
 // ── State ────────────────────────────────────────────────────────────────────
-let S = { epics: [], settings: { pat: '', gistId: '' } };
+let S = { epics: [], events: [], settings: { pat: '', gistId: '' } };
 
-const uid       = () => Math.random().toString(36).slice(2, 9);
-const todayStr  = () => new Date().toISOString().slice(0, 10);
+const uid      = () => Math.random().toString(36).slice(2, 9);
+const todayStr = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; };
 
 function esc(s) {
   return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 function daysDiff(a, b) { return Math.round((new Date(b) - new Date(a)) / 86400000); }
+function shiftDate(d, n) {
+  const dt = new Date(d + 'T00:00:00');
+  dt.setDate(dt.getDate() + n);
+  return `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}`;
+}
 function fmtDate(d) {
   if (!d) return '';
   const [y, m, day] = d.split('-');
@@ -485,21 +475,37 @@ function urgency(d) {
   if (n <= 21) return 'warn';
   return 'ok';
 }
+
+// Resolve blocker info from either new {eventId} or legacy {date,event} format
+function getBlockerInfo(card) {
+  if (!card.blocker) return null;
+  if (card.blocker.eventId) {
+    const ev = (S.events||[]).find(e => e.id === card.blocker.eventId);
+    return ev ? { date: ev.date, name: ev.name } : null;
+  }
+  if (card.blocker.date) return { date: card.blocker.date, name: card.blocker.event || '' };
+  return null;
+}
+
 function isBlocked(card) {
-  return !!(card.blocker?.date && daysDiff(todayStr(), card.blocker.date) > 0);
+  const b = getBlockerInfo(card);
+  return !!(b && daysDiff(todayStr(), b.date) > 0);
 }
 
 // ── Persistence ───────────────────────────────────────────────────────────────
 function persist() { localStorage.setItem('life-board-v1', JSON.stringify(S)); }
 function hydrate() {
-  try { const r = localStorage.getItem('life-board-v1'); if (r) S = JSON.parse(r); } catch (_) {}
+  try {
+    const r = localStorage.getItem('life-board-v1');
+    if (r) { S = JSON.parse(r); S.events = S.events || []; }
+  } catch (_) {}
 }
 
 // ── GitHub Gist ───────────────────────────────────────────────────────────────
 async function gistPush() {
   const { pat, gistId } = S.settings;
   if (!pat) return { ok: false, msg: 'No PAT configured. Go to Settings first.' };
-  const content = JSON.stringify({ epics: S.epics }, null, 2);
+  const content = JSON.stringify({ epics: S.epics, events: S.events }, null, 2);
   const headers = { Authorization: `token ${pat}`, 'Content-Type': 'application/json' };
   try {
     let res;
@@ -527,13 +533,184 @@ async function gistPull() {
     const d = await res.json();
     const raw = d.files['life-board.json']?.content;
     if (!raw) return { ok: false, msg: 'File not found in gist.' };
-    S.epics = JSON.parse(raw).epics;
+    const parsed = JSON.parse(raw);
+    S.epics  = parsed.epics  || [];
+    S.events = parsed.events || [];
     persist(); render();
     return { ok: true };
   } catch (e) { return { ok: false, msg: e.message }; }
 }
 
-// ── Epic timeline (in swimlane header) ───────────────────────────────────────
+// ── Events timeline ───────────────────────────────────────────────────────────
+const DAY_PX = 20;
+let TL_START = null; // set by renderEventsSection
+
+function renderEventsSection() {
+  // Collect all relevant dates to determine range
+  const dates = [
+    todayStr(),
+    ...(S.events||[]).map(e => e.date),
+    ...S.epics.flatMap(ep => [
+      ep.deadline,
+      ...(ep.cards||[]).flatMap(c => {
+        const b = getBlockerInfo(c);
+        return [c.deadline, b?.date];
+      })
+    ])
+  ].filter(Boolean);
+
+  const minD = dates.reduce((a,b) => a < b ? a : b);
+  const maxD = dates.reduce((a,b) => a > b ? a : b);
+  TL_START = shiftDate(minD, -14);
+  const tlEnd = shiftDate(maxD, 60);
+  const totalDays = Math.max(daysDiff(TL_START, tlEnd), 180);
+  const W = totalDays * DAY_PX;
+  const px = d => daysDiff(TL_START, d) * DAY_PX;
+  const today = todayStr();
+
+  // Month spans row
+  let monthsHtml = '';
+  {
+    const cur = new Date(TL_START + 'T00:00:00');
+    cur.setDate(1); // start from 1st of TL_START's month
+    while (true) {
+      const monthStartStr = cur.toISOString().slice(0, 10);
+      if (monthStartStr > tlEnd) break;
+      const nextMonth = new Date(cur);
+      nextMonth.setMonth(nextMonth.getMonth() + 1);
+      const monthEndStr = nextMonth.toISOString().slice(0, 10);
+      const x = Math.max(0, px(monthStartStr));
+      const w = Math.min(W, px(monthEndStr)) - x;
+      if (w > 0) {
+        const label = cur.toLocaleString('default', { month: 'short' }) + ' \'' + String(cur.getFullYear()).slice(2);
+        monthsHtml += `<div class="ev-month-span" style="left:${x}px;width:${w}px">${label}</div>`;
+      }
+      cur.setMonth(cur.getMonth() + 1);
+    }
+  }
+
+  // Full-height day columns (local date to avoid UTC off-by-one)
+  let dayColsHtml = '';
+  for (let i = 0; i < totalDays; i++) {
+    const dt = new Date(TL_START + 'T00:00:00');
+    dt.setDate(dt.getDate() + i);
+    const ds = `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}`;
+    const dow = dt.getDay();
+    let cls = 'ev-day-col';
+    if (dow === 0 || dow === 6) cls += ' ev-day-we';
+    if (dt.getDate() === 1) cls += ' ev-day-ms';
+    if (ds === today) cls += ' ev-day-today';
+    dayColsHtml += `<div class="${cls}" style="left:${i * DAY_PX}px"><span class="ev-day-num">${dt.getDate()}</span></div>`;
+  }
+
+  // Today vertical line (centered on today's cell)
+  const todayX = px(today) + DAY_PX / 2;
+  const todayHtml = `<div class="ev-today" style="left:${todayX}px"></div>`;
+
+  // Event markers
+  const markersHtml = (S.events||[]).map(ev => {
+    const x = px(ev.date) + DAY_PX / 2;
+    return `<div class="ev-marker" style="left:${x}px" data-ev-id="${ev.id}">
+      <div class="ev-chip">
+        <span class="ev-name">${esc(ev.name)}</span>
+        <span class="ev-chip-btns">
+          <button class="ev-chip-btn" onclick="editEvInline('${ev.id}')" title="Rename">✎</button>
+          <button class="ev-chip-btn" onclick="deleteEvent('${ev.id}')" title="Delete">×</button>
+        </span>
+      </div>
+      <div class="ev-vline"></div>
+      <div class="ev-dot" title="${esc(ev.name)} · ${fmtDate(ev.date)}"></div>
+    </div>`;
+  }).join('');
+
+  document.getElementById('events-wrap').innerHTML = `
+    <div class="events-section">
+      <div class="events-hd">Events</div>
+      <div class="events-scroll">
+        <div class="events-tl" id="events-tl" style="width:${W}px" onclick="evTimelineClick(event)">
+          ${dayColsHtml}
+          <div class="ev-months-row" style="width:${W}px">${monthsHtml}</div>
+          <div class="ev-row-divider" style="top:32px"></div>
+          <div class="ev-axis"></div>
+          ${todayHtml}
+          ${markersHtml}
+        </div>
+      </div>
+    </div>`;
+
+  // Scroll today into view (centered)
+  requestAnimationFrame(() => {
+    const scroll = document.querySelector('.events-scroll');
+    if (scroll) scroll.scrollLeft = Math.max(0, todayX - scroll.clientWidth / 2);
+  });
+}
+
+// Click on timeline to create event
+function evTimelineClick(e) {
+  if (e.target.closest('.ev-marker') || e.target.closest('.ev-input-wrap')) return;
+  const tl = document.getElementById('events-tl');
+  if (!tl) return;
+  // Remove existing creation input if any
+  tl.querySelector('.ev-input-wrap')?.remove();
+  const x = e.clientX - tl.getBoundingClientRect().left;
+  const dayIdx = Math.floor(x / DAY_PX);
+  const date = shiftDate(TL_START, dayIdx);
+  const cellX = dayIdx * DAY_PX + DAY_PX / 2;
+  const wrap = document.createElement('div');
+  wrap.className = 'ev-input-wrap';
+  wrap.style.left = cellX + 'px';
+  wrap.innerHTML = `<input class="ev-name-input" placeholder="Event name…" data-date="${date}">`;
+  tl.appendChild(wrap);
+  const input = wrap.querySelector('input');
+  input.focus();
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Enter') {
+      const name = input.value.trim();
+      if (name) { S.events = S.events||[]; S.events.push({ id: uid(), name, date }); persist(); }
+      renderEventsSection();
+      render(); // update card blockers if any
+    } else if (e.key === 'Escape') {
+      renderEventsSection();
+    }
+  });
+  input.addEventListener('blur', () => setTimeout(() => wrap.remove(), 150));
+}
+
+// Inline rename event
+function editEvInline(id) {
+  const ev = (S.events||[]).find(e => e.id === id);
+  if (!ev) return;
+  const nameEl = document.querySelector(`[data-ev-id="${id}"] .ev-name`);
+  if (!nameEl) return;
+  const input = document.createElement('input');
+  input.value = ev.name;
+  input.style.cssText = 'width:90px;border:1px solid var(--accent);border-radius:3px;padding:1px 4px;font-size:10px;font-family:inherit;background:white;';
+  nameEl.replaceWith(input);
+  input.focus(); input.select();
+  let done = false;
+  const save = () => {
+    if (done) return; done = true;
+    const name = input.value.trim();
+    if (name) { ev.name = name; persist(); }
+    renderEventsSection();
+  };
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); save(); }
+    if (e.key === 'Escape') { done = true; renderEventsSection(); }
+  });
+  input.addEventListener('blur', save);
+}
+
+function deleteEvent(id) {
+  if (!confirm('Delete this event? Any cards using it as a blocker will be unblocked.')) return;
+  S.events = (S.events||[]).filter(e => e.id !== id);
+  S.epics.forEach(ep => (ep.cards||[]).forEach(c => {
+    if (c.blocker?.eventId === id) c.blocker = null;
+  }));
+  persist(); render();
+}
+
+// ── Epic timeline ─────────────────────────────────────────────────────────────
 function renderEpicTimeline(deadline) {
   const u = urgency(deadline);
   const n = daysDiff(todayStr(), deadline);
@@ -554,38 +731,30 @@ function renderEpicTimeline(deadline) {
       <div class="epic-tl-dot today"></div>
       <div class="epic-tl-dot deadline"></div>
     </div>
-    <div class="epic-tl-labels">
-      <span>Today</span>
-      <span>${fmtDate(deadline)} · ${daysLabel(deadline)}</span>
-    </div>
+    <div class="epic-tl-labels"><span>Today</span><span>${fmtDate(deadline)} · ${daysLabel(deadline)}</span></div>
   </div>`;
 }
 
-// ── Card timeline (within a card) ─────────────────────────────────────────────
+// ── Card timeline ─────────────────────────────────────────────────────────────
 function renderCardTimeline(card) {
-  const hasDL = !!card.deadline;
-  if (!hasDL) return '';
-
+  if (!card.deadline) return '';
   const t = todayStr();
   const totalDays = daysDiff(t, card.deadline);
 
   if (totalDays < 0) {
     return `<div class="tl-wrap">
-      <div class="tl-bar" style="background:#fecaca;">
-        <div class="tl-dot today" style="background:var(--red);"></div>
-      </div>
+      <div class="tl-bar" style="background:#fecaca;"><div class="tl-dot today" style="background:var(--red);"></div></div>
       <div class="tl-labels"><span style="color:var(--red);font-weight:600;">Overdue ${Math.abs(totalDays)}d</span><span>${fmtDate(card.deadline)}</span></div>
     </div>`;
   }
 
-  const hasB  = !!(card.blocker?.date);
-  if (hasB) {
-    const bDiff = daysDiff(t, card.blocker.date);
+  const b = getBlockerInfo(card);
+  if (b) {
+    const bDiff = daysDiff(t, b.date);
     if (bDiff > 0) {
       const bPct = totalDays > 0 ? Math.min(98, Math.round(bDiff / totalDays * 100)) : 50;
       const actionDays = totalDays - bDiff;
-      const aCls = actionDays <= 0 ? 'action-danger' : actionDays <= 7 ? 'action-danger' : actionDays <= 14 ? 'action-warn' : 'action-ok';
-      const bLabel = `${card.blocker.event ? esc(card.blocker.event) + ' · ' : ''}${fmtDate(card.blocker.date)}`;
+      const aCls = actionDays <= 7 ? 'action-danger' : actionDays <= 14 ? 'action-warn' : 'action-ok';
       return `<div class="tl-wrap">
         <div class="tl-bar">
           <div class="tl-zone waiting" style="left:0;width:${bPct}%;"></div>
@@ -594,7 +763,7 @@ function renderCardTimeline(card) {
           <div class="tl-dot blocker" style="left:${bPct}%;transform:translate(-50%,-50%);"></div>
           <div class="tl-dot deadline"></div>
         </div>
-        <div class="tl-blocker-label">⏳ ${bLabel}</div>
+        <div class="tl-blocker-label">⏳ ${b.name ? esc(b.name)+' · ' : ''}${fmtDate(b.date)}</div>
         <div class="tl-labels"><span>Today</span><span>${fmtDate(card.deadline)} (${daysLabel(card.deadline)})</span></div>
       </div>`;
     }
@@ -611,11 +780,12 @@ function renderCardTimeline(card) {
   </div>`;
 }
 
-// ── Render ────────────────────────────────────────────────────────────────────
+// ── Card render ───────────────────────────────────────────────────────────────
 function cardHtml(epicId, card) {
   const blocked = isBlocked(card);
-  const blBadge = blocked
-    ? `<span class="badge badge-blocker">⏳ ${card.blocker.event ? esc(card.blocker.event)+' · ' : ''}${fmtDate(card.blocker.date)}</span>`
+  const b = getBlockerInfo(card);
+  const blBadge = (b && daysDiff(todayStr(), b.date) > 0)
+    ? `<span class="badge badge-blocker">⏳ ${b.name ? esc(b.name)+' · ' : ''}${fmtDate(b.date)}</span>`
     : '';
 
   return `<div class="card${blocked?' waiting':''}" data-card-id="${card.id}"
@@ -633,15 +803,17 @@ function cardHtml(epicId, card) {
       >${esc(card.notes||'')}</textarea>
     <div class="card-meta-row">
       <input type="date" class="card-date-input" draggable="false" value="${card.deadline||''}"
-        title="Due date"
-        onchange="saveInlineField('${epicId}','${card.id}','deadline',this)">
+        title="Due date" onchange="saveInlineField('${epicId}','${card.id}','deadline',this)">
       ${blBadge}
     </div>
     ${renderCardTimeline(card)}
   </div>`;
 }
 
+// ── Board render ──────────────────────────────────────────────────────────────
 function render() {
+  renderEventsSection();
+
   const active = S.epics.filter(e => !e.archived);
   const counts = { todo: 0, doing: 0, done: 0 };
   active.forEach(e => (e.cards||[]).forEach(c => { if (counts[c.status] !== undefined) counts[c.status]++; }));
@@ -663,17 +835,14 @@ function render() {
 
   const swimlanes = active.map(epic => {
     const dlU = epic.deadline ? urgency(epic.deadline) : null;
-    const dlBadge = epic.deadline
-      ? `<span class="sl-dl-label sl-dl-${dlU}">${daysLabel(epic.deadline)}</span>` : '';
-    const timeline = epic.deadline ? renderEpicTimeline(epic.deadline) : '';
-
+    const dlBadge = epic.deadline ? `<span class="sl-dl-label sl-dl-${dlU}">${daysLabel(epic.deadline)}</span>` : '';
     const head = `<div class="swimlane-head">
       <div class="sl-row">
         <span class="sl-name">${esc(epic.name)}</span>
         ${dlBadge}
         <button class="btn btn-sm" onclick="openEditEpic('${epic.id}')">Edit</button>
       </div>
-      ${timeline}
+      ${epic.deadline ? renderEpicTimeline(epic.deadline) : ''}
     </div>`;
 
     const cols = ['todo','doing','done'].map(status => {
@@ -691,8 +860,7 @@ function render() {
         ${waiting.map(c => cardHtml(epic.id, c)).join('')}
         <div class="inline-wrap">
           <input class="inline-input" data-epic="${epic.id}" data-status="${status}"
-            placeholder="Add card…"
-            onkeydown="handleInlineCard(event,'${epic.id}','${status}')">
+            placeholder="Add card…" onkeydown="handleInlineCard(event,'${epic.id}','${status}')">
         </div>
       </div>`;
     }).join('');
@@ -712,6 +880,15 @@ function showModal(html) {
 }
 function closeModal() { document.getElementById('modal-root').innerHTML = ''; }
 
+// ── Event selector helper ─────────────────────────────────────────────────────
+function eventSelectOpts(selectedId) {
+  const sorted = [...(S.events||[])].sort((a,b) => a.date < b.date ? -1 : 1);
+  const opts = sorted.map(e =>
+    `<option value="${e.id}" ${e.id===selectedId?'selected':''}>${esc(e.name)} · ${fmtDate(e.date)}</option>`
+  ).join('');
+  return `<option value="">— No blocker —</option>${opts}`;
+}
+
 // ── Add card ──────────────────────────────────────────────────────────────────
 function openAddCard(preEpicId) {
   const opts = S.epics.filter(e=>!e.archived).map(e=>`<option value="${e.id}" ${e.id===preEpicId?'selected':''}>${esc(e.name)}</option>`).join('');
@@ -724,11 +901,8 @@ function openAddCard(preEpicId) {
     <div class="fg"><label>Status</label><select id="f-status">
       <option value="todo">Todo</option><option value="doing">Doing</option><option value="done">Done</option>
     </select></div>
-    <div class="form-row">
-      <div class="fg"><label>Deadline</label><input id="f-dl" type="date"></div>
-      <div class="fg"><label>Blocked until</label><input id="f-bd" type="date"></div>
-    </div>
-    <div class="fg"><label>Blocker event name</label><input id="f-be" placeholder="e.g. Visa approval, Contract signed..."></div>
+    <div class="fg"><label>Deadline</label><input id="f-dl" type="date"></div>
+    <div class="fg"><label>Blocked by event</label><select id="f-blocker">${eventSelectOpts('')}</select></div>
     <div class="modal-footer">
       <button class="btn" onclick="closeModal()">Cancel</button>
       <div class="spacer"></div>
@@ -742,13 +916,14 @@ function _submitCard() {
   if (!title) { alert('Title is required.'); return; }
   const epic = S.epics.find(e=>e.id===epicId);
   if (!epic) return;
-  const bd = document.getElementById('f-bd').value;
+  const eventId = document.getElementById('f-blocker').value;
   epic.cards = epic.cards||[];
-  epic.cards.push({ id: uid(), title,
+  epic.cards.push({
+    id: uid(), title,
     notes:    document.getElementById('f-notes').value.trim(),
     status:   document.getElementById('f-status').value,
     deadline: document.getElementById('f-dl').value || null,
-    blocker:  bd ? { date: bd, event: document.getElementById('f-be').value.trim() } : null
+    blocker:  eventId ? { eventId } : null
   });
   persist(); render(); closeModal();
 }
@@ -758,6 +933,7 @@ function openEditCard(epicId, cardId) {
   const epic = S.epics.find(e=>e.id===epicId);
   const card = epic?.cards.find(c=>c.id===cardId);
   if (!card) return;
+  const curEventId = card.blocker?.eventId || '';
   showModal(`<div class="modal">
     <h2>Edit Card</h2>
     <div class="fg"><label>Title</label><input id="f-title" value="${esc(card.title)}" autofocus></div>
@@ -767,11 +943,8 @@ function openEditCard(epicId, cardId) {
       <option value="doing" ${card.status==='doing'?'selected':''}>Doing</option>
       <option value="done" ${card.status==='done'?'selected':''}>Done</option>
     </select></div>
-    <div class="form-row">
-      <div class="fg"><label>Deadline</label><input id="f-dl" type="date" value="${card.deadline||''}"></div>
-      <div class="fg"><label>Blocked until</label><input id="f-bd" type="date" value="${card.blocker?.date||''}"></div>
-    </div>
-    <div class="fg"><label>Blocker event name</label><input id="f-be" value="${esc(card.blocker?.event||'')}" placeholder="e.g. Visa approval..."></div>
+    <div class="fg"><label>Deadline</label><input id="f-dl" type="date" value="${card.deadline||''}"></div>
+    <div class="fg"><label>Blocked by event</label><select id="f-blocker">${eventSelectOpts(curEventId)}</select></div>
     <div class="modal-footer">
       <button class="btn btn-danger" onclick="_deleteCard('${epicId}','${cardId}')">Delete</button>
       <div class="spacer"></div>
@@ -786,12 +959,12 @@ function _saveCard(epicId, cardId) {
   if (!card) return;
   const title = document.getElementById('f-title').value.trim();
   if (!title) { alert('Title is required.'); return; }
-  const bd = document.getElementById('f-bd').value;
+  const eventId = document.getElementById('f-blocker').value;
   card.title    = title;
   card.notes    = document.getElementById('f-notes').value.trim();
   card.status   = document.getElementById('f-status').value;
   card.deadline = document.getElementById('f-dl').value || null;
-  card.blocker  = bd ? { date: bd, event: document.getElementById('f-be').value.trim() } : null;
+  card.blocker  = eventId ? { eventId } : null;
   persist(); render(); closeModal();
 }
 function _deleteCard(epicId, cardId) {
@@ -814,9 +987,167 @@ function moveCard(epicId, cardId, dir) {
   persist(); render();
 }
 
+// ── Drag and drop ─────────────────────────────────────────────────────────────
+function handleDragStart(e, epicId, cardId) {
+  e.dataTransfer.setData('application/json', JSON.stringify({epicId, cardId}));
+  e.dataTransfer.effectAllowed = 'move';
+  setTimeout(() => { document.querySelector(`[data-card-id="${cardId}"]`)?.classList.add('dragging'); }, 0);
+}
+function handleDragEnd() {
+  document.querySelectorAll('.dragging,.drag-over').forEach(el => el.classList.remove('dragging','drag-over'));
+}
+function handleDragOver(e) {
+  e.preventDefault(); e.dataTransfer.dropEffect = 'move';
+  e.currentTarget.classList.add('drag-over');
+}
+function handleDragLeave(e) {
+  if (!e.currentTarget.contains(e.relatedTarget)) e.currentTarget.classList.remove('drag-over');
+}
+function handleDrop(e, targetEpicId, targetStatus) {
+  e.preventDefault(); e.currentTarget.classList.remove('drag-over');
+  let payload; try { payload = JSON.parse(e.dataTransfer.getData('application/json')); } catch { return; }
+  const { epicId, cardId } = payload;
+  const srcEpic = S.epics.find(ep => ep.id === epicId);
+  const card = srcEpic?.cards.find(c => c.id === cardId);
+  if (!card) return;
+  if (epicId === targetEpicId && card.status === targetStatus) return;
+  if (epicId !== targetEpicId) {
+    srcEpic.cards = srcEpic.cards.filter(c => c.id !== cardId);
+    card.status = targetStatus;
+    const tgt = S.epics.find(ep => ep.id === targetEpicId);
+    if (tgt) { tgt.cards = tgt.cards || []; tgt.cards.push(card); }
+  } else {
+    card.status = targetStatus;
+  }
+  persist(); render();
+}
+
+// ── Inline field save ─────────────────────────────────────────────────────────
+function saveInlineField(epicId, cardId, field, el) {
+  const epic = S.epics.find(e => e.id === epicId);
+  const card = epic?.cards.find(c => c.id === cardId);
+  if (!card) return;
+  let val;
+  if (field === 'deadline')    { val = el.value || null; }
+  else if (field === 'notes')  { val = el.value.trim() || null; }
+  else { val = el.value.trim(); if (!val) { el.value = card.title; return; } }
+  if (card[field] === val) return;
+  card[field] = val;
+  persist(); render();
+}
+
+function resizeTextareas() {
+  document.querySelectorAll('.card-notes-input').forEach(ta => {
+    ta.style.height = 'auto';
+    ta.style.height = ta.scrollHeight + 'px';
+  });
+}
+
+// ── Inline add handlers ───────────────────────────────────────────────────────
+function handleInlineCard(e, epicId, status) {
+  if (e.key === 'Enter') {
+    const title = e.target.value.trim();
+    if (!title) return;
+    const epic = S.epics.find(ep => ep.id === epicId);
+    if (!epic) return;
+    epic.cards = epic.cards || [];
+    epic.cards.push({ id: uid(), title, notes: '', status, deadline: null, blocker: null });
+    persist(); render();
+    document.querySelector(`.inline-input[data-epic="${epicId}"][data-status="${status}"]`)?.focus();
+  } else if (e.key === 'Escape') {
+    e.target.value = ''; e.target.blur();
+  }
+}
+function handleInlineEpic(e) {
+  if (e.key === 'Enter') {
+    const title = e.target.value.trim();
+    if (!title) return;
+    S.epics.push({ id: uid(), name: title, deadline: null, archived: false, cards: [] });
+    persist(); render();
+    document.getElementById('inline-epic-input')?.focus();
+  } else if (e.key === 'Escape') {
+    e.target.value = ''; e.target.blur();
+  }
+}
+
+// ── Events modal ──────────────────────────────────────────────────────────────
+function openEventsModal() {
+  const sorted = [...(S.events||[])].sort((a,b) => a.date < b.date ? -1 : 1);
+  const rows = sorted.map(ev => `<div class="epic-item" id="ev-row-${ev.id}">
+    <span class="epic-item-name">${esc(ev.name)}</span>
+    <span class="epic-item-dl">${fmtDate(ev.date)}</span>
+    <button class="btn btn-sm" onclick="_renameEventModal('${ev.id}')">Rename</button>
+    <button class="btn btn-sm btn-danger" onclick="_deleteEventModal('${ev.id}')">Delete</button>
+  </div>`).join('');
+  showModal(`<div class="modal">
+    <h2>Events</h2>
+    ${rows || '<div class="empty-state">No events yet. Click the timeline to add one.</div>'}
+    <div class="modal-footer">
+      <button class="btn btn-primary" onclick="_addEventModal()">+ New Event</button>
+      <div class="spacer"></div>
+      <button class="btn" onclick="closeModal()">Close</button>
+    </div>
+  </div>`);
+}
+function _addEventModal() {
+  showModal(`<div class="modal">
+    <h2>New Event</h2>
+    <div class="fg"><label>Name</label><input id="f-evname" placeholder="e.g. Moving day" autofocus></div>
+    <div class="fg"><label>Date</label><input id="f-evdate" type="date" value="${todayStr()}"></div>
+    <div class="modal-footer">
+      <button class="btn" onclick="openEventsModal()">Back</button>
+      <div class="spacer"></div>
+      <button class="btn btn-primary" onclick="_submitEventModal()">Add</button>
+    </div>
+  </div>`);
+}
+function _submitEventModal() {
+  const name = document.getElementById('f-evname').value.trim();
+  const date = document.getElementById('f-evdate').value;
+  if (!name) { alert('Name is required.'); return; }
+  if (!date) { alert('Date is required.'); return; }
+  S.events = S.events || [];
+  S.events.push({ id: uid(), name, date });
+  persist(); render(); openEventsModal();
+}
+function _renameEventModal(id) {
+  const ev = (S.events||[]).find(e => e.id === id);
+  if (!ev) return;
+  showModal(`<div class="modal">
+    <h2>Edit Event</h2>
+    <div class="fg"><label>Name</label><input id="f-evname" value="${esc(ev.name)}" autofocus></div>
+    <div class="fg"><label>Date</label><input id="f-evdate" type="date" value="${ev.date}"></div>
+    <div class="modal-footer">
+      <button class="btn" onclick="openEventsModal()">Back</button>
+      <div class="spacer"></div>
+      <button class="btn btn-primary" onclick="_saveEventModal('${id}')">Save</button>
+    </div>
+  </div>`);
+}
+function _saveEventModal(id) {
+  const ev = (S.events||[]).find(e => e.id === id);
+  if (!ev) return;
+  const name = document.getElementById('f-evname').value.trim();
+  const date = document.getElementById('f-evdate').value;
+  if (!name) { alert('Name is required.'); return; }
+  if (!date) { alert('Date is required.'); return; }
+  ev.name = name; ev.date = date;
+  persist(); render(); openEventsModal();
+}
+function _deleteEventModal(id) {
+  const ev = (S.events||[]).find(e => e.id === id);
+  if (!ev) return;
+  if (!confirm(`Delete "${ev.name}"? Cards using it as a blocker will be unblocked.`)) return;
+  S.events = S.events.filter(e => e.id !== id);
+  S.epics.forEach(ep => (ep.cards||[]).forEach(c => {
+    if (c.blocker?.eventId === id) c.blocker = null;
+  }));
+  persist(); render(); openEventsModal();
+}
+
 // ── Epics ─────────────────────────────────────────────────────────────────────
 function openEpics() {
-  const active   = S.epics.filter(e=>!e.archived);
+  const active = S.epics.filter(e=>!e.archived);
   const archived = S.epics.filter(e=>e.archived);
   const row = e => `<div class="epic-item">
     <span class="epic-item-name">${esc(e.name)}</span>
@@ -875,8 +1206,7 @@ function _saveEpic(epicId) {
   if (!e) return;
   const name = document.getElementById('f-en').value.trim();
   if (!name) { alert('Name is required.'); return; }
-  e.name = name;
-  e.deadline = document.getElementById('f-ed').value || null;
+  e.name = name; e.deadline = document.getElementById('f-ed').value || null;
   persist(); render(); closeModal();
 }
 function _deleteEpic(epicId) {
@@ -896,7 +1226,7 @@ function _restoreEpic(epicId) {
   if (e) { e.archived = false; persist(); render(); openEpics(); }
 }
 
-// ── Settings ──────────────────────────────────────────────────────────────────
+// ── Settings & Sync ───────────────────────────────────────────────────────────
 function openSettings() {
   showModal(`<div class="modal">
     <h2>Settings — Gist Sync</h2>
@@ -912,12 +1242,10 @@ function openSettings() {
   </div>`);
 }
 function _saveSettings() {
-  S.settings.pat    = document.getElementById('f-pat').value.trim();
+  S.settings.pat = document.getElementById('f-pat').value.trim();
   S.settings.gistId = document.getElementById('f-gid').value.trim();
   persist(); closeModal();
 }
-
-// ── Sync ──────────────────────────────────────────────────────────────────────
 function openSync() {
   showModal(`<div class="modal">
     <h2>Sync with GitHub Gist</h2>
@@ -938,121 +1266,9 @@ function _syncMsg(msg, ok) {
 async function _doPush() { _syncMsg('Pushing…', true); const r = await gistPush(); _syncMsg(r.ok?(r.msg||'Pushed.'):'Error: '+r.msg, r.ok); }
 async function _doPull() { _syncMsg('Pulling…', true); const r = await gistPull(); _syncMsg(r.ok?'Pulled successfully.':'Error: '+r.msg, r.ok); }
 
-// ── Drag and drop ────────────────────────────────────────────────────────────
-function handleDragStart(e, epicId, cardId) {
-  e.dataTransfer.setData('application/json', JSON.stringify({epicId, cardId}));
-  e.dataTransfer.effectAllowed = 'move';
-  setTimeout(() => {
-    const el = document.querySelector(`[data-card-id="${cardId}"]`);
-    if (el) el.classList.add('dragging');
-  }, 0);
-}
-
-function handleDragEnd(e) {
-  document.querySelectorAll('.dragging,.drag-over').forEach(el =>
-    el.classList.remove('dragging','drag-over')
-  );
-}
-
-function handleDragOver(e) {
-  e.preventDefault();
-  e.dataTransfer.dropEffect = 'move';
-  e.currentTarget.classList.add('drag-over');
-}
-
-function handleDragLeave(e) {
-  if (!e.currentTarget.contains(e.relatedTarget))
-    e.currentTarget.classList.remove('drag-over');
-}
-
-function handleDrop(e, targetEpicId, targetStatus) {
-  e.preventDefault();
-  e.currentTarget.classList.remove('drag-over');
-  let payload;
-  try { payload = JSON.parse(e.dataTransfer.getData('application/json')); } catch { return; }
-  const {epicId, cardId} = payload;
-
-  const srcEpic = S.epics.find(ep => ep.id === epicId);
-  const card = srcEpic?.cards.find(c => c.id === cardId);
-  if (!card) return;
-  if (epicId === targetEpicId && card.status === targetStatus) return;
-
-  if (epicId !== targetEpicId) {
-    srcEpic.cards = srcEpic.cards.filter(c => c.id !== cardId);
-    card.status = targetStatus;
-    const tgt = S.epics.find(ep => ep.id === targetEpicId);
-    if (tgt) { tgt.cards = tgt.cards || []; tgt.cards.push(card); }
-  } else {
-    card.status = targetStatus;
-  }
-  persist();
-  render();
-}
-
-// ── Inline field save ─────────────────────────────────────────────────────────
-function saveInlineField(epicId, cardId, field, el) {
-  const epic = S.epics.find(e => e.id === epicId);
-  const card = epic?.cards.find(c => c.id === cardId);
-  if (!card) return;
-  let val;
-  if (field === 'deadline') {
-    val = el.value || null;
-  } else if (field === 'notes') {
-    val = el.value.trim() || null;
-  } else {
-    val = el.value.trim();
-    if (!val) { el.value = card.title; return; } // reject empty title
-  }
-  if (card[field] === val) return;
-  card[field] = val;
-  persist();
-  render();
-}
-
-function resizeTextareas() {
-  document.querySelectorAll('.card-notes-input').forEach(ta => {
-    ta.style.height = 'auto';
-    ta.style.height = ta.scrollHeight + 'px';
-  });
-}
-
-// ── Inline add handlers ───────────────────────────────────────────────────────
-function handleInlineCard(e, epicId, status) {
-  if (e.key === 'Enter') {
-    const title = e.target.value.trim();
-    if (!title) return;
-    const epic = S.epics.find(ep => ep.id === epicId);
-    if (!epic) return;
-    epic.cards = epic.cards || [];
-    epic.cards.push({ id: uid(), title, notes: '', status, deadline: null, blocker: null });
-    persist();
-    render();
-    // Re-focus same column's input after re-render
-    const input = document.querySelector(`.inline-input[data-epic="${epicId}"][data-status="${status}"]`);
-    if (input) input.focus();
-  } else if (e.key === 'Escape') {
-    e.target.value = '';
-    e.target.blur();
-  }
-}
-
-function handleInlineEpic(e) {
-  if (e.key === 'Enter') {
-    const title = e.target.value.trim();
-    if (!title) return;
-    S.epics.push({ id: uid(), name: title, deadline: null, archived: false, cards: [] });
-    persist();
-    render();
-    const input = document.getElementById('inline-epic-input');
-    if (input) input.focus();
-  } else if (e.key === 'Escape') {
-    e.target.value = '';
-    e.target.blur();
-  }
-}
-
 // ── Wire up ───────────────────────────────────────────────────────────────────
 document.getElementById('btn-epics').addEventListener('click', openEpics);
+document.getElementById('btn-events').addEventListener('click', openEventsModal);
 document.getElementById('btn-add-card').addEventListener('click', () => openAddCard());
 document.getElementById('btn-sync').addEventListener('click', openSync);
 document.getElementById('btn-settings').addEventListener('click', openSettings);
