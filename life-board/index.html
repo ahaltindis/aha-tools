@@ -1303,7 +1303,14 @@ function _saveSettings() {
 }
 function openSync() {
   showModal(`<div class="modal">
-    <h2>Sync with GitHub Gist</h2>
+    <h2>Sync & Export</h2>
+    <div class="section-title">Local File</div>
+    <p class="hint">Export all data to a JSON file, or restore from a previously exported file.</p>
+    <div style="display:flex;gap:8px;margin-bottom:4px;">
+      <button class="btn" onclick="exportData()">↓ Export JSON</button>
+      <button class="btn" onclick="importData()">↑ Import JSON</button>
+    </div>
+    <div class="section-title" style="margin-top:20px;">GitHub Gist</div>
     <p class="hint">Push sends your data to GitHub Gist. Pull replaces local data with the Gist version. Configure your PAT in Settings first.</p>
     <div id="sync-msg" style="font-size:13px;min-height:20px;"></div>
     <div class="modal-footer">
@@ -1313,6 +1320,37 @@ function openSync() {
       <button class="btn btn-primary" onclick="_doPush()">↑ Push</button>
     </div>
   </div>`);
+}
+function exportData() {
+  const data = JSON.stringify({ epics: S.epics, events: S.events }, null, 2);
+  const blob = new Blob([data], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `life-board-${todayStr()}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+function importData() {
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = '.json,application/json';
+  input.onchange = async e => {
+    const file = e.target.files[0];
+    if (!file) return;
+    try {
+      const text = await file.text();
+      const parsed = JSON.parse(text);
+      if (!Array.isArray(parsed.epics)) throw new Error('Missing epics array — is this a Life Board export?');
+      if (!confirm(`Import "${file.name}"? This will replace all current data.`)) return;
+      S.epics  = parsed.epics  || [];
+      S.events = parsed.events || [];
+      persist(); render(); closeModal();
+    } catch (err) {
+      alert('Import failed: ' + err.message);
+    }
+  };
+  input.click();
 }
 function _syncMsg(msg, ok) {
   const el = document.getElementById('sync-msg');
