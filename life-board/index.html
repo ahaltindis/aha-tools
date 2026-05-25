@@ -209,6 +209,13 @@ body {
   background: var(--accent-light); border-bottom: 1px solid #dde4ff;
 }
 .sl-row { display: flex; align-items: center; gap: 10px; }
+.sl-collapse-btn {
+  border: none; background: transparent; cursor: pointer;
+  color: var(--text-muted); font-size: 11px; padding: 2px 4px;
+  border-radius: 3px; line-height: 1; transition: color 0.12s, background 0.12s;
+  flex-shrink: 0;
+}
+.sl-collapse-btn:hover { color: var(--accent); background: var(--bg); }
 .sl-name { font-size: 13px; font-weight: 700; color: var(--accent); flex: 1; }
 .sl-dl-label { font-size: 11px; font-weight: 600; padding: 2px 7px; border-radius: 4px; }
 .sl-dl-ok     { background: #d1fae5; color: #065f46; }
@@ -798,7 +805,7 @@ function cardHtml(epicId, card) {
         onkeydown="if(event.key==='Enter')this.blur()">
       <button class="card-edit-btn" draggable="false" onclick="openEditCard('${epicId}','${card.id}')" title="Edit">✎</button>
     </div>
-    <textarea class="card-notes-input" draggable="false" placeholder="Add notes…"
+    <textarea class="card-notes-input" draggable="false" placeholder="Add notes…" spellcheck="false"
       onblur="saveInlineField('${epicId}','${card.id}','notes',this)"
       >${esc(card.notes||'')}</textarea>
     <div class="card-meta-row">
@@ -836,14 +843,18 @@ function render() {
   const swimlanes = active.map(epic => {
     const dlU = epic.deadline ? urgency(epic.deadline) : null;
     const dlBadge = epic.deadline ? `<span class="sl-dl-label sl-dl-${dlU}">${daysLabel(epic.deadline)}</span>` : '';
+    const collapseBtn = `<button class="sl-collapse-btn" onclick="toggleEpicCollapse('${epic.id}')" title="${epic.collapsed ? 'Expand' : 'Collapse'}">${epic.collapsed ? '▸' : '▾'}</button>`;
     const head = `<div class="swimlane-head">
       <div class="sl-row">
+        ${collapseBtn}
         <span class="sl-name">${esc(epic.name)}</span>
         ${dlBadge}
         <button class="btn btn-sm" onclick="openEditEpic('${epic.id}')">Edit</button>
       </div>
-      ${epic.deadline ? renderEpicTimeline(epic.deadline) : ''}
+      ${!epic.collapsed && epic.deadline ? renderEpicTimeline(epic.deadline) : ''}
     </div>`;
+
+    if (epic.collapsed) return `<div class="swimlane">${head}</div>`;
 
     const cols = ['todo','doing','done'].map(status => {
       const cards = (epic.cards||[]).filter(c => c.status === status);
@@ -1216,6 +1227,10 @@ function _deleteEpic(epicId) {
   if (!confirm(`Delete "${e.name}"${n?` and its ${n} card(s)`:''}?`)) return;
   S.epics = S.epics.filter(ep=>ep.id!==epicId);
   persist(); render(); closeModal();
+}
+function toggleEpicCollapse(epicId) {
+  const e = S.epics.find(ep => ep.id === epicId);
+  if (e) { e.collapsed = !e.collapsed; persist(); render(); }
 }
 function _archiveEpic(epicId) {
   const e = S.epics.find(ep=>ep.id===epicId);
