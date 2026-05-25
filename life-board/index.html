@@ -309,6 +309,9 @@ body {
 .card-date-input:hover { border-color: var(--border); background: var(--bg); }
 .card-date-input:focus { outline: none; border-color: var(--accent); background: var(--surface); }
 .card-date-input::-webkit-calendar-picker-indicator { opacity: 0.4; cursor: pointer; }
+.card-date-completed { color: var(--green); font-weight: 500; }
+.card-date-completed::-webkit-calendar-picker-indicator { opacity: 0.4; cursor: pointer; }
+.completed-check { font-size: 11px; font-weight: 700; color: var(--green); flex-shrink: 0; }
 
 /* ── Badges ── */
 .badge { font-size: 11px; font-weight: 500; padding: 2px 7px; border-radius: 4px; }
@@ -795,6 +798,14 @@ function cardHtml(epicId, card) {
     ? `<span class="badge badge-blocker">⏳ ${b.name ? esc(b.name)+' · ' : ''}${fmtDate(b.date)}</span>`
     : '';
 
+  const isDone = card.status === 'done';
+  const dateField = isDone
+    ? `<span class="completed-check">✓</span>
+       <input type="date" class="card-date-input card-date-completed" draggable="false" value="${card.completedAt||''}"
+         title="Completion date" onchange="saveInlineField('${epicId}','${card.id}','completedAt',this)">`
+    : `<input type="date" class="card-date-input" draggable="false" value="${card.deadline||''}"
+         title="Due date" onchange="saveInlineField('${epicId}','${card.id}','deadline',this)">`;
+
   return `<div class="card${blocked?' waiting':''}" data-card-id="${card.id}"
     draggable="true"
     ondragstart="handleDragStart(event,'${epicId}','${card.id}')"
@@ -809,11 +820,10 @@ function cardHtml(epicId, card) {
       onblur="saveInlineField('${epicId}','${card.id}','notes',this)"
       >${esc(card.notes||'')}</textarea>
     <div class="card-meta-row">
-      <input type="date" class="card-date-input" draggable="false" value="${card.deadline||''}"
-        title="Due date" onchange="saveInlineField('${epicId}','${card.id}','deadline',this)">
-      ${blBadge}
+      ${dateField}
+      ${isDone ? '' : blBadge}
     </div>
-    ${renderCardTimeline(card)}
+    ${isDone ? '' : renderCardTimeline(card)}
   </div>`;
 }
 
@@ -955,6 +965,7 @@ function openEditCard(epicId, cardId) {
       <option value="done" ${card.status==='done'?'selected':''}>Done</option>
     </select></div>
     <div class="fg"><label>Deadline</label><input id="f-dl" type="date" value="${card.deadline||''}"></div>
+    <div class="fg"><label>Completion Date</label><input id="f-ca" type="date" value="${card.completedAt||''}"></div>
     <div class="fg"><label>Blocked by event</label><select id="f-blocker">${eventSelectOpts(curEventId)}</select></div>
     <div class="modal-footer">
       <button class="btn btn-danger" onclick="_deleteCard('${epicId}','${cardId}')">Delete</button>
@@ -971,11 +982,14 @@ function _saveCard(epicId, cardId) {
   const title = document.getElementById('f-title').value.trim();
   if (!title) { alert('Title is required.'); return; }
   const eventId = document.getElementById('f-blocker').value;
+  const newStatus = document.getElementById('f-status').value;
+  const caVal = document.getElementById('f-ca').value;
   card.title    = title;
   card.notes    = document.getElementById('f-notes').value.trim();
-  card.status   = document.getElementById('f-status').value;
+  card.status   = newStatus;
   card.deadline = document.getElementById('f-dl').value || null;
   card.blocker  = eventId ? { eventId } : null;
+  card.completedAt = newStatus === 'done' ? (caVal || card.completedAt || todayStr()) : null;
   persist(); render(); closeModal();
 }
 function _deleteCard(epicId, cardId) {
@@ -1022,15 +1036,41 @@ function handleDrop(e, targetEpicId, targetStatus) {
   const card = srcEpic?.cards.find(c => c.id === cardId);
   if (!card) return;
   if (epicId === targetEpicId && card.status === targetStatus) return;
+  if (targetStatus === 'done' && card.status !== 'done') {
+    _askCompletionDate(card.title, epicId, cardId, targetEpicId, targetStatus);
+  } else {
+    _executeMove(epicId, cardId, targetEpicId, targetStatus, targetStatus === 'done' ? card.completedAt : null);
+  }
+}
+function _executeMove(epicId, cardId, targetEpicId, targetStatus, completedAt) {
+  const srcEpic = S.epics.find(ep => ep.id === epicId);
+  const card = srcEpic?.cards.find(c => c.id === cardId);
+  if (!card) return;
+  card.status = targetStatus;
+  card.completedAt = targetStatus === 'done' ? (completedAt || null) : null;
   if (epicId !== targetEpicId) {
     srcEpic.cards = srcEpic.cards.filter(c => c.id !== cardId);
-    card.status = targetStatus;
     const tgt = S.epics.find(ep => ep.id === targetEpicId);
     if (tgt) { tgt.cards = tgt.cards || []; tgt.cards.push(card); }
-  } else {
-    card.status = targetStatus;
   }
   persist(); render();
+}
+function _askCompletionDate(title, epicId, cardId, targetEpicId, targetStatus) {
+  showModal(`<div class="modal">
+    <h2>Mark as Done</h2>
+    <p style="font-size:13px;color:var(--text-muted);margin-bottom:16px;">${esc(title)}</p>
+    <div class="fg"><label>Completion Date</label><input id="f-ca" type="date" value="${todayStr()}" autofocus></div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal();_executeMove('${epicId}','${cardId}','${targetEpicId}','${targetStatus}',null)">Skip</button>
+      <div class="spacer"></div>
+      <button class="btn btn-primary" onclick="_confirmCompletionDate('${epicId}','${cardId}','${targetEpicId}','${targetStatus}')">Confirm</button>
+    </div>
+  </div>`);
+}
+function _confirmCompletionDate(epicId, cardId, targetEpicId, targetStatus) {
+  const date = document.getElementById('f-ca').value || todayStr();
+  closeModal();
+  _executeMove(epicId, cardId, targetEpicId, targetStatus, date);
 }
 
 // ── Inline field save ─────────────────────────────────────────────────────────
@@ -1039,7 +1079,7 @@ function saveInlineField(epicId, cardId, field, el) {
   const card = epic?.cards.find(c => c.id === cardId);
   if (!card) return;
   let val;
-  if (field === 'deadline')    { val = el.value || null; }
+  if (field === 'deadline' || field === 'completedAt') { val = el.value || null; }
   else if (field === 'notes')  { val = el.value.trim() || null; }
   else { val = el.value.trim(); if (!val) { el.value = card.title; return; } }
   if (card[field] === val) return;
@@ -1062,7 +1102,7 @@ function handleInlineCard(e, epicId, status) {
     const epic = S.epics.find(ep => ep.id === epicId);
     if (!epic) return;
     epic.cards = epic.cards || [];
-    epic.cards.push({ id: uid(), title, notes: '', status, deadline: null, blocker: null });
+    epic.cards.push({ id: uid(), title, notes: '', status, deadline: null, blocker: null, completedAt: status === 'done' ? todayStr() : null });
     persist(); render();
     document.querySelector(`.inline-input[data-epic="${epicId}"][data-status="${status}"]`)?.focus();
   } else if (e.key === 'Escape') {
