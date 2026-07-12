@@ -1,0 +1,581 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Appliance Compare</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+:root {
+  --bg: #f1f5f9;
+  --surface: #ffffff;
+  --surface-muted: #f8fafc;
+  --border: #e2e8f0;
+  --text: #1e293b;
+  --text-muted: #94a3b8;
+  --accent: #4f46e5;
+  --accent-light: #eef2ff;
+  --radius: 8px;
+  --green: #10b981;
+  --red: #ef4444;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+}
+
+/* ── Header ── */
+.header {
+  position: sticky; top: 0; z-index: 100;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 0 20px; height: 52px;
+  display: flex; align-items: center; gap: 10px;
+}
+.header h1 { font-size: 16px; font-weight: 700; color: var(--accent); margin-right: auto; }
+
+.btn {
+  padding: 6px 13px; border-radius: 6px;
+  border: 1px solid var(--border); background: var(--surface);
+  color: var(--text); font-size: 13px; font-family: inherit;
+  cursor: pointer; white-space: nowrap; transition: background 0.12s;
+}
+.btn:hover { background: var(--bg); }
+.btn-sm { padding: 4px 10px; font-size: 12px; }
+.btn-danger { color: var(--red); border-color: #fecaca; }
+.btn-danger:hover { background: #fee2e2; }
+
+/* ── Board ── */
+.board-wrap { padding: 20px; }
+
+.cat-row {
+  border: 1px solid var(--border); border-radius: var(--radius);
+  background: var(--surface); overflow: hidden; margin-bottom: 18px;
+  transition: opacity 0.12s;
+}
+.cat-row.dragging { opacity: 0.35; }
+
+.cat-header {
+  display: flex; align-items: center; gap: 8px;
+  padding: 10px 14px; background: var(--accent-light);
+  border-bottom: 1px solid #dde4ff; cursor: grab;
+  transition: box-shadow 0.1s;
+}
+.cat-header:active { cursor: grabbing; }
+.cat-header.drag-over-top { box-shadow: inset 0 3px 0 var(--accent); }
+.cat-header.drag-over-bottom { box-shadow: inset 0 -3px 0 var(--accent); }
+.cat-drag-handle { color: var(--text-muted); font-size: 13px; user-select: none; flex-shrink: 0; }
+.cat-name-input {
+  flex: 1; min-width: 0; border: none; background: transparent;
+  font-size: 14px; font-weight: 700; color: var(--accent); font-family: inherit;
+  padding: 3px 5px; border-radius: 4px;
+}
+.cat-name-input:focus { outline: none; background: var(--surface); box-shadow: 0 0 0 2px rgba(79,70,229,0.15); }
+.cat-count {
+  background: var(--border); color: var(--text-muted);
+  font-size: 11px; padding: 1px 7px; border-radius: 10px; flex-shrink: 0;
+}
+
+.cat-strip { display: flex; gap: 12px; padding: 14px; overflow-x: auto; }
+
+.model-card {
+  flex: 0 0 220px; width: 220px;
+  border: 1px solid var(--border); border-radius: var(--radius);
+  background: var(--surface); padding: 10px; cursor: grab;
+  position: relative; transition: box-shadow 0.12s, border-color 0.12s, opacity 0.12s;
+}
+.model-card:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.07); border-color: #cbd5e1; }
+.model-card:active { cursor: grabbing; }
+.model-card.dragging { opacity: 0.35; }
+.model-card.drag-over-left { box-shadow: inset 3px 0 0 var(--accent); }
+.model-card.drag-over-right { box-shadow: inset -3px 0 0 var(--accent); }
+
+.model-del {
+  position: absolute; top: 6px; right: 6px; border: none; background: transparent;
+  color: var(--text-muted); cursor: pointer; font-size: 14px; padding: 2px 5px;
+  border-radius: 4px; opacity: 0; transition: opacity 0.12s, background 0.12s; line-height: 1;
+}
+.model-card:hover .model-del { opacity: 0.5; }
+.model-del:hover { opacity: 1 !important; background: var(--bg); color: var(--red); }
+
+.model-brand-input {
+  width: 100%; border: none; background: transparent;
+  font-size: 10px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase;
+  color: var(--text-muted); font-family: inherit; padding: 2px 18px 0 2px;
+}
+.model-brand-input:focus { outline: none; color: var(--accent); }
+.model-name-input {
+  width: 100%; border: none; border-bottom: 1px solid var(--border); background: transparent;
+  font-size: 14px; font-weight: 700; color: var(--text); font-family: inherit;
+  padding: 0 2px 6px; margin-bottom: 8px;
+}
+.model-name-input:focus { outline: none; border-bottom-color: var(--accent); }
+
+.model-image {
+  width: 100%; height: 130px; border: 1px dashed var(--border); border-radius: 6px;
+  display: flex; align-items: center; justify-content: center; overflow: hidden;
+  background: var(--surface-muted); cursor: pointer; margin-bottom: 8px; position: relative;
+}
+.model-image:focus { outline: none; border-color: var(--accent); }
+.model-image img { width: 100%; height: 100%; object-fit: contain; }
+.model-image-placeholder { font-size: 11px; color: var(--text-muted); text-align: center; padding: 8px; line-height: 1.5; }
+.model-image-remove {
+  position: absolute; top: 4px; right: 4px; border: none; background: rgba(15,23,42,0.55);
+  color: #fff; width: 18px; height: 18px; border-radius: 50%; font-size: 11px; line-height: 1;
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+  opacity: 0; transition: opacity 0.12s;
+}
+.model-image:hover .model-image-remove { opacity: 1; }
+
+.model-meta { margin-bottom: 8px; }
+.meta-row { display: flex; gap: 4px; margin-bottom: 3px; }
+.meta-key-input {
+  width: 40%; font-size: 11px; border: none; background: var(--surface-muted);
+  border-radius: 4px; padding: 3px 5px; font-family: inherit; color: var(--text-muted);
+}
+.meta-val-input {
+  flex: 1; min-width: 0; font-size: 11px; border: none; background: var(--surface-muted);
+  border-radius: 4px; padding: 3px 5px; font-family: inherit; color: var(--text);
+}
+.meta-key-input:focus, .meta-val-input:focus { outline: none; box-shadow: 0 0 0 1.5px var(--accent); }
+.meta-del-btn { border: none; background: transparent; color: var(--text-muted); cursor: pointer; font-size: 12px; padding: 0 3px; }
+.meta-del-btn:hover { color: var(--red); }
+.meta-add-btn {
+  font-size: 11px; color: var(--accent); background: transparent; border: 1px dashed var(--border);
+  border-radius: 4px; padding: 3px 6px; cursor: pointer; width: 100%; font-family: inherit;
+}
+.meta-add-btn:hover { background: var(--accent-light); border-color: var(--accent); }
+
+.model-price-row { border-top: 1px solid var(--border); padding-top: 7px; margin-top: 2px; }
+.model-price-input {
+  width: 100%; font-size: 13px; font-weight: 700; color: var(--text); border: none;
+  background: transparent; font-family: inherit; padding: 2px 2px 4px;
+}
+.model-price-input:focus { outline: none; }
+.model-source-row { display: flex; align-items: center; gap: 4px; }
+.model-source-input {
+  flex: 1; min-width: 0; font-size: 11px; color: var(--text-muted); border: none;
+  background: transparent; font-family: inherit; padding: 2px;
+}
+.model-source-input:focus { outline: none; color: var(--text); }
+.model-source-link { color: var(--accent); text-decoration: none; font-size: 12px; flex-shrink: 0; }
+
+.add-model-card {
+  flex: 0 0 90px; width: 90px; border: 1px dashed var(--border); border-radius: var(--radius);
+  display: flex; align-items: center; justify-content: center; color: var(--text-muted);
+  font-size: 12px; cursor: pointer; text-align: center; padding: 8px;
+  transition: background 0.12s, border-color 0.12s, color 0.12s;
+}
+.add-model-card:hover { background: var(--accent-light); border-color: var(--accent); color: var(--accent); }
+
+.inline-add-cat { border: 1px dashed var(--border); border-radius: var(--radius); background: var(--surface); padding: 4px 6px; }
+.inline-input {
+  width: 100%; padding: 6px 8px; border: 1px solid transparent; border-radius: 6px;
+  font-size: 13px; font-family: inherit; color: var(--text); background: transparent;
+  transition: border-color 0.12s, background 0.12s;
+}
+.inline-input::placeholder { color: var(--text-muted); opacity: 0.6; }
+.inline-input:hover::placeholder { opacity: 1; }
+.inline-input:focus { outline: none; box-shadow: none; }
+
+.board-empty {
+  text-align: center; padding: 60px 20px; color: var(--text-muted); font-size: 14px;
+}
+.board-empty strong { display: block; font-size: 16px; margin-bottom: 6px; color: var(--text); }
+
+@media (max-width: 600px) {
+  .board-wrap { padding: 12px; }
+  .header { padding: 0 12px; gap: 6px; }
+  .model-card { flex-basis: 180px; width: 180px; }
+}
+</style>
+</head>
+<body>
+
+<header class="header">
+  <h1>Appliance Compare</h1>
+  <button class="btn btn-sm" id="btn-export">↓ Export</button>
+  <button class="btn btn-sm" id="btn-import">↑ Import</button>
+</header>
+
+<div class="board-wrap">
+  <div class="board" id="board"></div>
+</div>
+
+<script>
+// ── State ────────────────────────────────────────────────────────────────────
+let S = { categories: [] };
+
+const uid = () => Math.random().toString(36).slice(2, 9);
+const todayStr = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; };
+
+function esc(s) {
+  return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function isUrl(s) { return /^https?:\/\//i.test(s || ''); }
+
+// ── Persistence ───────────────────────────────────────────────────────────────
+function persist() {
+  try { localStorage.setItem('appliance-compare-v1', JSON.stringify(S)); }
+  catch (e) { alert('Storage limit reached — try removing some images, or export your data as a backup.'); }
+}
+function hydrate() {
+  try {
+    const r = localStorage.getItem('appliance-compare-v1');
+    if (r) S = JSON.parse(r);
+  } catch (_) {}
+  S.categories = S.categories || [];
+}
+
+// ── Render ────────────────────────────────────────────────────────────────────
+function render() {
+  const wrap = document.getElementById('board');
+  const inlineCat = `<div class="inline-add-cat">
+    <input class="inline-input" id="inline-cat-input" placeholder="Add category (e.g. Fridge)…" onkeydown="handleInlineCategory(event)">
+  </div>`;
+
+  if (!S.categories.length) {
+    wrap.innerHTML = `<div class="board-empty"><strong>No categories yet</strong>Add one below to start comparing models.</div>${inlineCat}`;
+    return;
+  }
+
+  wrap.innerHTML = S.categories.map(catRowHtml).join('') + inlineCat;
+}
+
+function catRowHtml(cat) {
+  const models = cat.models || [];
+  return `<div class="cat-row" data-cat-id="${cat.id}">
+    <div class="cat-header" draggable="true"
+      ondragstart="catDragStart(event,'${cat.id}')" ondragend="dragEndCommon(event)"
+      ondragover="catHeaderDragOver(event)" ondragleave="catHeaderDragLeave(event)" ondrop="catHeaderDrop(event,'${cat.id}')">
+      <span class="cat-drag-handle">⋮⋮</span>
+      <input class="cat-name-input" draggable="false" value="${esc(cat.name)}"
+        onblur="renameCategory('${cat.id}',this)" onkeydown="if(event.key==='Enter')this.blur()">
+      <span class="cat-count">${models.length}</span>
+      <button class="btn btn-sm btn-danger" draggable="false" onclick="deleteCategory('${cat.id}')">Delete</button>
+    </div>
+    <div class="cat-strip" ondragover="stripDragOver(event)" ondrop="stripDrop(event,'${cat.id}')">
+      ${models.map(m => modelCardHtml(cat.id, m)).join('')}
+      <div class="add-model-card" onclick="addModel('${cat.id}')">+ Add model</div>
+    </div>
+  </div>`;
+}
+
+function modelCardHtml(catId, m) {
+  const meta = m.meta || [];
+  const metaRows = meta.map(f => `<div class="meta-row" data-meta-id="${f.id}">
+    <input class="meta-key-input" draggable="false" placeholder="Field" value="${esc(f.key)}"
+      onblur="updateMetaField('${catId}','${m.id}','${f.id}','key',this)" onkeydown="if(event.key==='Enter')this.blur()">
+    <input class="meta-val-input" draggable="false" placeholder="Value" value="${esc(f.value)}"
+      onblur="updateMetaField('${catId}','${m.id}','${f.id}','value',this)" onkeydown="if(event.key==='Enter')this.blur()">
+    <button class="meta-del-btn" draggable="false" onclick="removeMetaField('${catId}','${m.id}','${f.id}')" title="Remove">×</button>
+  </div>`).join('');
+
+  const imgInner = m.image
+    ? `<img src="${m.image}" draggable="false"><button class="model-image-remove" draggable="false" onclick="removeImage(event,'${catId}','${m.id}')" title="Remove image">×</button>`
+    : `<div class="model-image-placeholder">Click or paste an image</div>`;
+
+  const sourceLink = isUrl(m.source)
+    ? `<a class="model-source-link" draggable="false" href="${esc(m.source)}" target="_blank" rel="noopener" title="Open link">↗</a>`
+    : '';
+
+  return `<div class="model-card" data-model-id="${m.id}" draggable="true"
+      ondragstart="modelDragStart(event,'${catId}','${m.id}')" ondragend="dragEndCommon(event)"
+      ondragover="modelCardDragOver(event)" ondragleave="modelCardDragLeave(event)" ondrop="modelCardDrop(event,'${catId}','${m.id}')">
+    <button class="model-del" draggable="false" onclick="deleteModel('${catId}','${m.id}')" title="Delete model">×</button>
+    <input class="model-brand-input" draggable="false" placeholder="Brand" value="${esc(m.brand)}"
+      onblur="updateModelField('${catId}','${m.id}','brand',this)" onkeydown="if(event.key==='Enter')this.blur()">
+    <input class="model-name-input" draggable="false" placeholder="Model" value="${esc(m.name)}"
+      onblur="updateModelField('${catId}','${m.id}','name',this)" onkeydown="if(event.key==='Enter')this.blur()">
+    <div class="model-image" draggable="false" tabindex="0"
+      onpaste="handleImagePaste(event,'${catId}','${m.id}')"
+      ondragover="event.preventDefault();event.stopPropagation()" ondrop="handleImageDrop(event,'${catId}','${m.id}')"
+      onclick="triggerImageUpload('${catId}','${m.id}')" title="Click, drag a file, or paste (Ctrl+V) an image">
+      ${imgInner}
+    </div>
+    <div class="model-meta">
+      ${metaRows}
+      <button class="meta-add-btn" draggable="false" onclick="addMetaField('${catId}','${m.id}')">+ Field</button>
+    </div>
+    <div class="model-price-row">
+      <input class="model-price-input" draggable="false" placeholder="Price (e.g. 45.000 ₺)" value="${esc(m.price)}"
+        onblur="updateModelField('${catId}','${m.id}','price',this)" onkeydown="if(event.key==='Enter')this.blur()">
+      <div class="model-source-row">
+        <input class="model-source-input" draggable="false" placeholder="Source (site or store)" value="${esc(m.source)}"
+          onblur="updateModelField('${catId}','${m.id}','source',this)" onkeydown="if(event.key==='Enter')this.blur()">
+        ${sourceLink}
+      </div>
+    </div>
+  </div>`;
+}
+
+// ── Category CRUD ─────────────────────────────────────────────────────────────
+function handleInlineCategory(e) {
+  if (e.key === 'Enter') {
+    const name = e.target.value.trim();
+    if (!name) return;
+    S.categories.push({ id: uid(), name, models: [] });
+    persist(); render();
+    document.getElementById('inline-cat-input')?.focus();
+  } else if (e.key === 'Escape') {
+    e.target.value = ''; e.target.blur();
+  }
+}
+function renameCategory(catId, el) {
+  const cat = S.categories.find(c => c.id === catId);
+  if (!cat) return;
+  const val = el.value.trim();
+  if (!val) { el.value = cat.name; return; }
+  if (cat.name === val) return;
+  cat.name = val; persist();
+}
+function deleteCategory(catId) {
+  if (!confirm('Delete this category and all its models?')) return;
+  S.categories = S.categories.filter(c => c.id !== catId);
+  persist(); render();
+}
+
+// ── Model CRUD ────────────────────────────────────────────────────────────────
+function addModel(catId) {
+  const cat = S.categories.find(c => c.id === catId);
+  if (!cat) return;
+  cat.models = cat.models || [];
+  cat.models.push({ id: uid(), brand: '', name: '', image: null, meta: [], price: '', source: '' });
+  persist(); render();
+}
+function deleteModel(catId, modelId) {
+  if (!confirm('Delete this model?')) return;
+  const cat = S.categories.find(c => c.id === catId);
+  if (!cat) return;
+  cat.models = cat.models.filter(m => m.id !== modelId);
+  persist(); render();
+}
+function updateModelField(catId, modelId, field, el) {
+  const cat = S.categories.find(c => c.id === catId);
+  const model = cat?.models.find(m => m.id === modelId);
+  if (!model) return;
+  const val = el.value.trim();
+  if (model[field] === val) return;
+  model[field] = val;
+  persist(); render();
+}
+
+// ── Metadata fields ───────────────────────────────────────────────────────────
+function addMetaField(catId, modelId) {
+  const cat = S.categories.find(c => c.id === catId);
+  const model = cat?.models.find(m => m.id === modelId);
+  if (!model) return;
+  model.meta = model.meta || [];
+  model.meta.push({ id: uid(), key: '', value: '' });
+  persist(); render();
+  requestAnimationFrame(() => {
+    const rows = document.querySelectorAll(`.model-card[data-model-id="${modelId}"] .meta-key-input`);
+    rows[rows.length - 1]?.focus();
+  });
+}
+function updateMetaField(catId, modelId, metaId, field, el) {
+  const cat = S.categories.find(c => c.id === catId);
+  const model = cat?.models.find(m => m.id === modelId);
+  const meta = model?.meta.find(f => f.id === metaId);
+  if (!meta) return;
+  meta[field] = el.value.trim();
+  persist();
+}
+function removeMetaField(catId, modelId, metaId) {
+  const cat = S.categories.find(c => c.id === catId);
+  const model = cat?.models.find(m => m.id === modelId);
+  if (!model) return;
+  model.meta = model.meta.filter(f => f.id !== metaId);
+  persist(); render();
+}
+
+// ── Image paste / drop / upload ───────────────────────────────────────────────
+function handleImagePaste(e, catId, modelId) {
+  const items = e.clipboardData?.items || [];
+  for (const it of items) {
+    if (it.type.startsWith('image/')) {
+      e.preventDefault();
+      const file = it.getAsFile();
+      if (file) readImageFile(file, catId, modelId);
+      return;
+    }
+  }
+}
+function handleImageDrop(e, catId, modelId) {
+  e.preventDefault(); e.stopPropagation();
+  const file = e.dataTransfer.files?.[0];
+  if (file && file.type.startsWith('image/')) readImageFile(file, catId, modelId);
+}
+function triggerImageUpload(catId, modelId) {
+  const input = document.createElement('input');
+  input.type = 'file'; input.accept = 'image/*';
+  input.onchange = e => {
+    const f = e.target.files[0];
+    if (f) readImageFile(f, catId, modelId);
+  };
+  input.click();
+}
+function removeImage(e, catId, modelId) {
+  e.stopPropagation();
+  const cat = S.categories.find(c => c.id === catId);
+  const model = cat?.models.find(m => m.id === modelId);
+  if (!model) return;
+  model.image = null;
+  persist(); render();
+}
+function readImageFile(file, catId, modelId) {
+  const reader = new FileReader();
+  reader.onload = () => {
+    const img = new Image();
+    img.onload = () => {
+      const maxW = 640;
+      const scale = Math.min(1, maxW / img.width);
+      const w = Math.round(img.width * scale), h = Math.round(img.height * scale);
+      const canvas = document.createElement('canvas');
+      canvas.width = w; canvas.height = h;
+      canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.82);
+      const cat = S.categories.find(c => c.id === catId);
+      const model = cat?.models.find(m => m.id === modelId);
+      if (!model) return;
+      model.image = dataUrl;
+      persist(); render();
+    };
+    img.src = reader.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+// ── Drag and drop: categories ─────────────────────────────────────────────────
+let catDragCtx = null;
+function catDragStart(e, catId) {
+  catDragCtx = catId;
+  e.dataTransfer.effectAllowed = 'move';
+  e.dataTransfer.setData('text/plain', catId);
+  setTimeout(() => document.querySelector(`.cat-row[data-cat-id="${catId}"]`)?.classList.add('dragging'), 0);
+}
+function catHeaderDragOver(e) {
+  e.preventDefault();
+  const rect = e.currentTarget.getBoundingClientRect();
+  const before = (e.clientY - rect.top) < rect.height / 2;
+  e.currentTarget.classList.toggle('drag-over-top', before);
+  e.currentTarget.classList.toggle('drag-over-bottom', !before);
+}
+function catHeaderDragLeave(e) {
+  e.currentTarget.classList.remove('drag-over-top', 'drag-over-bottom');
+}
+function catHeaderDrop(e, catId) {
+  e.preventDefault();
+  e.currentTarget.classList.remove('drag-over-top', 'drag-over-bottom');
+  if (!catDragCtx || catDragCtx === catId) { catDragCtx = null; return; }
+  const rect = e.currentTarget.getBoundingClientRect();
+  const before = (e.clientY - rect.top) < rect.height / 2;
+  const srcIdx = S.categories.findIndex(c => c.id === catDragCtx);
+  if (srcIdx === -1) return;
+  const [moved] = S.categories.splice(srcIdx, 1);
+  let tgtIdx = S.categories.findIndex(c => c.id === catId);
+  if (!before) tgtIdx++;
+  S.categories.splice(tgtIdx, 0, moved);
+  catDragCtx = null;
+  persist(); render();
+}
+
+// ── Drag and drop: models ─────────────────────────────────────────────────────
+let modelDragCtx = null;
+function modelDragStart(e, catId, modelId) {
+  modelDragCtx = { catId, modelId };
+  e.dataTransfer.effectAllowed = 'move';
+  e.dataTransfer.setData('text/plain', modelId);
+  setTimeout(() => document.querySelector(`.model-card[data-model-id="${modelId}"]`)?.classList.add('dragging'), 0);
+}
+function modelCardDragOver(e) {
+  e.preventDefault(); e.stopPropagation();
+  const rect = e.currentTarget.getBoundingClientRect();
+  const before = (e.clientX - rect.left) < rect.width / 2;
+  e.currentTarget.classList.toggle('drag-over-left', before);
+  e.currentTarget.classList.toggle('drag-over-right', !before);
+}
+function modelCardDragLeave(e) {
+  e.currentTarget.classList.remove('drag-over-left', 'drag-over-right');
+}
+function modelCardDrop(e, catId, modelId) {
+  e.preventDefault(); e.stopPropagation();
+  e.currentTarget.classList.remove('drag-over-left', 'drag-over-right');
+  if (!modelDragCtx) return;
+  const rect = e.currentTarget.getBoundingClientRect();
+  const before = (e.clientX - rect.left) < rect.width / 2;
+  moveModel(modelDragCtx.catId, modelDragCtx.modelId, catId, modelId, before);
+  modelDragCtx = null;
+}
+function stripDragOver(e) { e.preventDefault(); }
+function stripDrop(e, catId) {
+  e.preventDefault();
+  if (!modelDragCtx) return;
+  moveModel(modelDragCtx.catId, modelDragCtx.modelId, catId, null, false);
+  modelDragCtx = null;
+}
+function dragEndCommon() {
+  document.querySelectorAll('.dragging,.drag-over-left,.drag-over-right,.drag-over-top,.drag-over-bottom')
+    .forEach(el => el.classList.remove('dragging', 'drag-over-left', 'drag-over-right', 'drag-over-top', 'drag-over-bottom'));
+}
+function moveModel(srcCatId, modelId, targetCatId, targetModelId, before) {
+  const srcCat = S.categories.find(c => c.id === srcCatId);
+  const model = srcCat?.models.find(m => m.id === modelId);
+  if (!model) return;
+  srcCat.models = srcCat.models.filter(m => m.id !== modelId);
+  const tgtCat = S.categories.find(c => c.id === targetCatId);
+  if (!tgtCat) return;
+  if (!targetModelId) {
+    tgtCat.models.push(model);
+  } else {
+    const idx = tgtCat.models.findIndex(m => m.id === targetModelId);
+    tgtCat.models.splice(before ? idx : idx + 1, 0, model);
+  }
+  persist(); render();
+}
+
+// ── Export / Import ───────────────────────────────────────────────────────────
+function exportData() {
+  const data = JSON.stringify({ categories: S.categories }, null, 2);
+  const blob = new Blob([data], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `appliance-compare-${todayStr()}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+function importData() {
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = '.json,application/json';
+  input.onchange = async e => {
+    const file = e.target.files[0];
+    if (!file) return;
+    try {
+      const text = await file.text();
+      const parsed = JSON.parse(text);
+      if (!Array.isArray(parsed.categories)) throw new Error('Missing categories array — is this an Appliance Compare export?');
+      if (!confirm(`Import "${file.name}"? This will replace all current data.`)) return;
+      S.categories = parsed.categories || [];
+      persist(); render();
+    } catch (err) {
+      alert('Import failed: ' + err.message);
+    }
+  };
+  input.click();
+}
+
+// ── Wire up ───────────────────────────────────────────────────────────────────
+document.getElementById('btn-export').addEventListener('click', exportData);
+document.getElementById('btn-import').addEventListener('click', importData);
+
+hydrate();
+render();
+</script>
+</body>
+</html>
