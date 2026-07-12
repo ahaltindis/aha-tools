@@ -120,16 +120,20 @@ body {
   display: flex; align-items: center; justify-content: center; overflow: hidden;
   background: var(--surface-muted); cursor: pointer; margin-bottom: 8px; position: relative;
 }
-.model-image:focus { outline: none; border-color: var(--accent); }
+.model-image:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 2px rgba(79,70,229,0.15); }
 .model-image img { width: 100%; height: 100%; object-fit: contain; }
-.model-image-placeholder { font-size: 11px; color: var(--text-muted); text-align: center; padding: 8px; line-height: 1.5; }
-.model-image-remove {
-  position: absolute; top: 4px; right: 4px; border: none; background: rgba(15,23,42,0.55);
-  color: #fff; width: 18px; height: 18px; border-radius: 50%; font-size: 11px; line-height: 1;
-  cursor: pointer; display: flex; align-items: center; justify-content: center;
+.model-image-placeholder { font-size: 11px; color: var(--text-muted); text-align: center; padding: 8px; line-height: 1.6; }
+.model-image-upload-link { color: var(--accent); text-decoration: underline; cursor: pointer; }
+.model-image-btns {
+  position: absolute; top: 4px; right: 4px; display: flex; gap: 4px;
   opacity: 0; transition: opacity 0.12s;
 }
-.model-image:hover .model-image-remove { opacity: 1; }
+.model-image:hover .model-image-btns { opacity: 1; }
+.model-image-btn {
+  border: none; background: rgba(15,23,42,0.55); color: #fff; width: 18px; height: 18px;
+  border-radius: 50%; font-size: 11px; line-height: 1; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+}
 
 .model-meta { margin-bottom: 8px; }
 .meta-row { display: flex; gap: 4px; margin-bottom: 3px; }
@@ -150,10 +154,11 @@ body {
 }
 .meta-add-btn:hover { background: var(--accent-light); border-color: var(--accent); }
 
-.model-price-row { border-top: 1px solid var(--border); padding-top: 7px; margin-top: 2px; }
+.model-prices { border-top: 1px solid var(--border); padding-top: 7px; margin-top: 2px; }
+.price-entry { background: var(--surface-muted); border-radius: 4px; padding: 4px 5px; margin-bottom: 4px; }
 .model-price-input {
   width: 100%; font-size: 13px; font-weight: 700; color: var(--text); border: none;
-  background: transparent; font-family: inherit; padding: 2px 2px 4px;
+  background: transparent; font-family: inherit; padding: 2px 2px 3px;
 }
 .model-price-input:focus { outline: none; }
 .model-source-row { display: flex; align-items: center; gap: 4px; }
@@ -163,6 +168,11 @@ body {
 }
 .model-source-input:focus { outline: none; color: var(--text); }
 .model-source-link { color: var(--accent); text-decoration: none; font-size: 12px; flex-shrink: 0; }
+.price-add-btn {
+  font-size: 11px; color: var(--accent); background: transparent; border: 1px dashed var(--border);
+  border-radius: 4px; padding: 3px 6px; cursor: pointer; width: 100%; font-family: inherit;
+}
+.price-add-btn:hover { background: var(--accent-light); border-color: var(--accent); }
 
 .add-model-card {
   flex: 0 0 90px; width: 90px; border: 1px dashed var(--border); border-radius: var(--radius);
@@ -259,29 +269,43 @@ function catRowHtml(cat) {
       <button class="btn btn-sm btn-danger" draggable="false" onclick="deleteCategory('${cat.id}')">Delete</button>
     </div>
     <div class="cat-strip" ondragover="stripDragOver(event)" ondrop="stripDrop(event,'${cat.id}')">
-      ${models.map(m => modelCardHtml(cat.id, m)).join('')}
+      ${models.map(m => modelCardHtml(cat, m)).join('')}
       <div class="add-model-card" onclick="addModel('${cat.id}')">+ Add model</div>
     </div>
   </div>`;
 }
 
-function modelCardHtml(catId, m) {
-  const meta = m.meta || [];
-  const metaRows = meta.map(f => `<div class="meta-row" data-meta-id="${f.id}">
+function modelCardHtml(cat, m) {
+  const catId = cat.id;
+  const fields = cat.metaFields || [];
+  const values = m.metaValues || {};
+  const metaRows = fields.map(f => `<div class="meta-row" data-field-id="${f.id}">
     <input class="meta-key-input" draggable="false" placeholder="Field" value="${esc(f.key)}"
-      onblur="updateMetaField('${catId}','${m.id}','${f.id}','key',this)" onkeydown="if(event.key==='Enter')this.blur()">
-    <input class="meta-val-input" draggable="false" placeholder="Value" value="${esc(f.value)}"
-      onblur="updateMetaField('${catId}','${m.id}','${f.id}','value',this)" onkeydown="if(event.key==='Enter')this.blur()">
-    <button class="meta-del-btn" draggable="false" onclick="removeMetaField('${catId}','${m.id}','${f.id}')" title="Remove">×</button>
+      onblur="updateMetaFieldKey('${catId}','${f.id}',this)" onkeydown="if(event.key==='Enter')this.blur()">
+    <input class="meta-val-input" draggable="false" placeholder="Value" value="${esc(values[f.id] || '')}"
+      onblur="updateMetaValue('${catId}','${m.id}','${f.id}',this)" onkeydown="if(event.key==='Enter')this.blur()">
+    <button class="meta-del-btn" draggable="false" onclick="removeMetaField('${catId}','${f.id}')" title="Remove field from all models in this category">×</button>
   </div>`).join('');
 
   const imgInner = m.image
-    ? `<img src="${m.image}" draggable="false"><button class="model-image-remove" draggable="false" onclick="removeImage(event,'${catId}','${m.id}')" title="Remove image">×</button>`
-    : `<div class="model-image-placeholder">Click or paste an image</div>`;
+    ? `<img src="${m.image}" draggable="false">
+       <div class="model-image-btns">
+         <button class="model-image-btn" draggable="false" onclick="triggerImageUpload(event,'${catId}','${m.id}')" title="Replace image">⟳</button>
+         <button class="model-image-btn" draggable="false" onclick="removeImage(event,'${catId}','${m.id}')" title="Remove image">×</button>
+       </div>`
+    : `<div class="model-image-placeholder">Click, then paste (Ctrl+V)<br>or <span class="model-image-upload-link" onclick="triggerImageUpload(event,'${catId}','${m.id}')">choose a file</span></div>`;
 
-  const sourceLink = isUrl(m.source)
-    ? `<a class="model-source-link" draggable="false" href="${esc(m.source)}" target="_blank" rel="noopener" title="Open link">↗</a>`
-    : '';
+  const prices = m.prices || [];
+  const priceRows = prices.map(p => `<div class="price-entry" data-price-id="${p.id}">
+    <input class="model-price-input" draggable="false" placeholder="Price (e.g. 45.000 ₺)" value="${esc(p.price)}"
+      onblur="updatePriceEntry('${catId}','${m.id}','${p.id}','price',this)" onkeydown="if(event.key==='Enter')this.blur()">
+    <div class="model-source-row">
+      <input class="model-source-input" draggable="false" placeholder="Source (site or store)" value="${esc(p.source)}"
+        onblur="updatePriceEntry('${catId}','${m.id}','${p.id}','source',this)" onkeydown="if(event.key==='Enter')this.blur()">
+      ${isUrl(p.source) ? `<a class="model-source-link" draggable="false" href="${esc(p.source)}" target="_blank" rel="noopener" title="Open link">↗</a>` : ''}
+      <button class="meta-del-btn" draggable="false" onclick="removePriceEntry('${catId}','${m.id}','${p.id}')" title="Remove">×</button>
+    </div>
+  </div>`).join('');
 
   return `<div class="model-card" data-model-id="${m.id}" draggable="true"
       ondragstart="modelDragStart(event,'${catId}','${m.id}')" ondragend="dragEndCommon(event)"
@@ -291,24 +315,18 @@ function modelCardHtml(catId, m) {
       onblur="updateModelField('${catId}','${m.id}','brand',this)" onkeydown="if(event.key==='Enter')this.blur()">
     <input class="model-name-input" draggable="false" placeholder="Model" value="${esc(m.name)}"
       onblur="updateModelField('${catId}','${m.id}','name',this)" onkeydown="if(event.key==='Enter')this.blur()">
-    <div class="model-image" draggable="false" tabindex="0"
-      onpaste="handleImagePaste(event,'${catId}','${m.id}')"
+    <div class="model-image" draggable="false" tabindex="0" data-cat-id="${catId}" data-model-id="${m.id}"
       ondragover="event.preventDefault();event.stopPropagation()" ondrop="handleImageDrop(event,'${catId}','${m.id}')"
-      onclick="triggerImageUpload('${catId}','${m.id}')" title="Click, drag a file, or paste (Ctrl+V) an image">
+      title="Click to focus, then paste (Ctrl+V), or drag a file in">
       ${imgInner}
     </div>
     <div class="model-meta">
       ${metaRows}
-      <button class="meta-add-btn" draggable="false" onclick="addMetaField('${catId}','${m.id}')">+ Field</button>
+      <button class="meta-add-btn" draggable="false" onclick="addMetaField('${catId}')">+ Field</button>
     </div>
-    <div class="model-price-row">
-      <input class="model-price-input" draggable="false" placeholder="Price (e.g. 45.000 ₺)" value="${esc(m.price)}"
-        onblur="updateModelField('${catId}','${m.id}','price',this)" onkeydown="if(event.key==='Enter')this.blur()">
-      <div class="model-source-row">
-        <input class="model-source-input" draggable="false" placeholder="Source (site or store)" value="${esc(m.source)}"
-          onblur="updateModelField('${catId}','${m.id}','source',this)" onkeydown="if(event.key==='Enter')this.blur()">
-        ${sourceLink}
-      </div>
+    <div class="model-prices">
+      ${priceRows}
+      <button class="price-add-btn" draggable="false" onclick="addPriceEntry('${catId}','${m.id}')">+ Price</button>
     </div>
   </div>`;
 }
@@ -344,7 +362,7 @@ function addModel(catId) {
   const cat = S.categories.find(c => c.id === catId);
   if (!cat) return;
   cat.models = cat.models || [];
-  cat.models.push({ id: uid(), brand: '', name: '', image: null, meta: [], price: '', source: '' });
+  cat.models.push({ id: uid(), brand: '', name: '', image: null, metaValues: {}, prices: [] });
   persist(); render();
 }
 function deleteModel(catId, modelId) {
@@ -364,57 +382,107 @@ function updateModelField(catId, modelId, field, el) {
   persist(); render();
 }
 
-// ── Metadata fields ───────────────────────────────────────────────────────────
-function addMetaField(catId, modelId) {
+// ── Metadata fields (shared schema per category) ──────────────────────────────
+function addMetaField(catId) {
   const cat = S.categories.find(c => c.id === catId);
-  const model = cat?.models.find(m => m.id === modelId);
-  if (!model) return;
-  model.meta = model.meta || [];
-  model.meta.push({ id: uid(), key: '', value: '' });
+  if (!cat) return;
+  cat.metaFields = cat.metaFields || [];
+  const field = { id: uid(), key: '' };
+  cat.metaFields.push(field);
   persist(); render();
   requestAnimationFrame(() => {
-    const rows = document.querySelectorAll(`.model-card[data-model-id="${modelId}"] .meta-key-input`);
-    rows[rows.length - 1]?.focus();
+    document.querySelector(`.meta-row[data-field-id="${field.id}"] .meta-key-input`)?.focus();
   });
 }
-function updateMetaField(catId, modelId, metaId, field, el) {
+function updateMetaFieldKey(catId, fieldId, el) {
   const cat = S.categories.find(c => c.id === catId);
-  const model = cat?.models.find(m => m.id === modelId);
-  const meta = model?.meta.find(f => f.id === metaId);
-  if (!meta) return;
-  meta[field] = el.value.trim();
-  persist();
+  const field = cat?.metaFields.find(f => f.id === fieldId);
+  if (!field) return;
+  const val = el.value.trim();
+  if (field.key === val) return;
+  field.key = val;
+  persist(); render();
 }
-function removeMetaField(catId, modelId, metaId) {
+function updateMetaValue(catId, modelId, fieldId, el) {
   const cat = S.categories.find(c => c.id === catId);
   const model = cat?.models.find(m => m.id === modelId);
   if (!model) return;
-  model.meta = model.meta.filter(f => f.id !== metaId);
+  model.metaValues = model.metaValues || {};
+  const val = el.value.trim();
+  if ((model.metaValues[fieldId] || '') === val) return;
+  model.metaValues[fieldId] = val;
+  persist();
+}
+function removeMetaField(catId, fieldId) {
+  const cat = S.categories.find(c => c.id === catId);
+  if (!cat) return;
+  const field = cat.metaFields.find(f => f.id === fieldId);
+  if (!confirm(`Remove field "${field?.key || '(untitled)'}" from all models in this category?`)) return;
+  cat.metaFields = cat.metaFields.filter(f => f.id !== fieldId);
+  (cat.models || []).forEach(m => { if (m.metaValues) delete m.metaValues[fieldId]; });
+  persist(); render();
+}
+
+// ── Price entries (multiple sources per model) ────────────────────────────────
+function addPriceEntry(catId, modelId) {
+  const cat = S.categories.find(c => c.id === catId);
+  const model = cat?.models.find(m => m.id === modelId);
+  if (!model) return;
+  model.prices = model.prices || [];
+  const entry = { id: uid(), price: '', source: '' };
+  model.prices.push(entry);
+  persist(); render();
+  requestAnimationFrame(() => {
+    document.querySelector(`.price-entry[data-price-id="${entry.id}"] .model-price-input`)?.focus();
+  });
+}
+function updatePriceEntry(catId, modelId, priceId, field, el) {
+  const cat = S.categories.find(c => c.id === catId);
+  const model = cat?.models.find(m => m.id === modelId);
+  const entry = model?.prices?.find(p => p.id === priceId);
+  if (!entry) return;
+  const val = el.value.trim();
+  if (entry[field] === val) return;
+  entry[field] = val;
+  persist(); render();
+}
+function removePriceEntry(catId, modelId, priceId) {
+  const cat = S.categories.find(c => c.id === catId);
+  const model = cat?.models.find(m => m.id === modelId);
+  if (!model) return;
+  model.prices = (model.prices || []).filter(p => p.id !== priceId);
   persist(); render();
 }
 
 // ── Image paste / drop / upload ───────────────────────────────────────────────
-function handleImagePaste(e, catId, modelId) {
+// Paste is handled at the document level (rather than an inline onpaste on the
+// zone) because focusing the zone and then reading document.activeElement is
+// more reliable across browsers than depending on the event to fire+bubble
+// correctly from a plain non-editable div.
+document.addEventListener('paste', e => {
+  const zone = document.activeElement;
+  if (!zone || !zone.classList.contains('model-image')) return;
   const items = e.clipboardData?.items || [];
   for (const it of items) {
     if (it.type.startsWith('image/')) {
       e.preventDefault();
       const file = it.getAsFile();
-      if (file) readImageFile(file, catId, modelId);
+      if (file) readImageFile(file, zone.dataset.catId, zone.dataset.modelId);
       return;
     }
   }
-}
+});
 function handleImageDrop(e, catId, modelId) {
   e.preventDefault(); e.stopPropagation();
   const file = e.dataTransfer.files?.[0];
   if (file && file.type.startsWith('image/')) readImageFile(file, catId, modelId);
 }
-function triggerImageUpload(catId, modelId) {
+function triggerImageUpload(e, catId, modelId) {
+  e.stopPropagation();
   const input = document.createElement('input');
   input.type = 'file'; input.accept = 'image/*';
-  input.onchange = e => {
-    const f = e.target.files[0];
+  input.onchange = ev => {
+    const f = ev.target.files[0];
     if (f) readImageFile(f, catId, modelId);
   };
   input.click();
