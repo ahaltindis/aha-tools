@@ -62,13 +62,13 @@ body {
 .cat-header {
   display: flex; align-items: center; gap: 8px;
   padding: 10px 14px; background: var(--accent-light);
-  border-bottom: 1px solid #dde4ff; cursor: grab;
+  border-bottom: 1px solid #dde4ff;
   transition: box-shadow 0.1s;
 }
-.cat-header:active { cursor: grabbing; }
 .cat-header.drag-over-top { box-shadow: inset 0 3px 0 var(--accent); }
 .cat-header.drag-over-bottom { box-shadow: inset 0 -3px 0 var(--accent); }
-.cat-drag-handle { color: var(--text-muted); font-size: 13px; user-select: none; flex-shrink: 0; }
+.cat-drag-handle { color: var(--text-muted); font-size: 13px; user-select: none; flex-shrink: 0; cursor: grab; }
+.cat-drag-handle:active { cursor: grabbing; }
 .cat-name-input {
   flex: 1; min-width: 0; border: none; background: transparent;
   font-size: 14px; font-weight: 700; color: var(--accent); font-family: inherit;
@@ -85,12 +85,16 @@ body {
 .model-card {
   flex: 0 0 220px; width: 220px;
   border: 1px solid var(--border); border-radius: var(--radius);
-  background: var(--surface); padding: 10px; cursor: grab;
+  background: var(--surface); padding: 10px;
   position: relative; transition: box-shadow 0.12s, border-color 0.12s, opacity 0.12s;
 }
 .model-card:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.07); border-color: #cbd5e1; }
-.model-card:active { cursor: grabbing; }
 .model-card.dragging { opacity: 0.35; }
+.card-drag-handle {
+  text-align: center; color: var(--text-muted); font-size: 11px; line-height: 1;
+  padding-bottom: 5px; cursor: grab; user-select: none;
+}
+.card-drag-handle:active { cursor: grabbing; }
 .model-card.drag-over-left { box-shadow: inset 3px 0 0 var(--accent); }
 .model-card.drag-over-right { box-shadow: inset -3px 0 0 var(--accent); }
 
@@ -259,11 +263,11 @@ function render() {
 function catRowHtml(cat) {
   const models = cat.models || [];
   return `<div class="cat-row" data-cat-id="${cat.id}">
-    <div class="cat-header" draggable="true"
-      ondragstart="catDragStart(event,'${cat.id}')" ondragend="dragEndCommon(event)"
+    <div class="cat-header"
       ondragover="catHeaderDragOver(event)" ondragleave="catHeaderDragLeave(event)" ondrop="catHeaderDrop(event,'${cat.id}')">
-      <span class="cat-drag-handle">⋮⋮</span>
-      <input class="cat-name-input" draggable="false" value="${esc(cat.name)}"
+      <span class="cat-drag-handle" draggable="true"
+        ondragstart="catDragStart(event,'${cat.id}')" ondragend="dragEndCommon(event)" title="Drag to reorder">⋮⋮</span>
+      <input class="cat-name-input" value="${esc(cat.name)}"
         onblur="renameCategory('${cat.id}',this)" onkeydown="if(event.key==='Enter')this.blur()">
       <span class="cat-count">${models.length}</span>
       <button class="btn btn-sm btn-danger" draggable="false" onclick="deleteCategory('${cat.id}')">Delete</button>
@@ -307,9 +311,10 @@ function modelCardHtml(cat, m) {
     </div>
   </div>`).join('');
 
-  return `<div class="model-card" data-model-id="${m.id}" draggable="true"
-      ondragstart="modelDragStart(event,'${catId}','${m.id}')" ondragend="dragEndCommon(event)"
+  return `<div class="model-card" data-model-id="${m.id}"
       ondragover="modelCardDragOver(event)" ondragleave="modelCardDragLeave(event)" ondrop="modelCardDrop(event,'${catId}','${m.id}')">
+    <div class="card-drag-handle" draggable="true"
+      ondragstart="modelDragStart(event,'${catId}','${m.id}')" ondragend="dragEndCommon(event)" title="Drag to reorder">⋮⋮</div>
     <button class="model-del" draggable="false" onclick="deleteModel('${catId}','${m.id}')" title="Delete model">×</button>
     <input class="model-brand-input" draggable="false" placeholder="Brand" value="${esc(m.brand)}"
       onblur="updateModelField('${catId}','${m.id}','brand',this)" onkeydown="if(event.key==='Enter')this.blur()">
