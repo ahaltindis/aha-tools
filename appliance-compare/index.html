@@ -180,6 +180,20 @@ body {
   border-radius: 4px; padding: 3px 6px; cursor: pointer; width: 100%; font-family: inherit;
 }
 .meta-add-btn:hover { background: var(--accent-light); border-color: var(--accent); }
+.meta-add-row { display: flex; gap: 4px; }
+.meta-add-row .meta-add-btn.sep { width: auto; flex-shrink: 0; }
+.meta-row.sep { align-items: center; margin: 6px 0 4px; }
+.meta-sep-line { flex: 1; display: flex; align-items: center; gap: 6px; min-width: 0; }
+.meta-sep-line::before, .meta-sep-line::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+.meta-sep-input {
+  flex: 0 1 auto; width: 8ch; min-width: 0; text-align: center; border: none; background: transparent;
+  font-size: 10px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase;
+  color: var(--text-muted); font-family: inherit; padding: 1px 2px; border-radius: 4px;
+}
+.meta-sep-input:focus { outline: none; box-shadow: 0 0 0 1.5px var(--accent); min-width: 8ch; }
+.meta-sep-line.empty { gap: 0; cursor: text; }
+.meta-sep-line.empty:focus-within { gap: 6px; }
+.meta-sep-line.empty .meta-sep-input:not(:focus) { width: 0 !important; padding: 0; }
 
 .model-prices { border-top: 1px solid var(--border); padding-top: 7px; margin-top: 2px; }
 .price-entry { background: var(--surface-muted); border-radius: 4px; padding: 4px 5px; margin-bottom: 4px; }
@@ -307,6 +321,20 @@ function modelCardHtml(cat, m) {
   const fields = cat.metaFields || [];
   const values = m.metaValues || {};
   const metaRows = fields.map(f => {
+    const dragAttrs = `ondragover="metaRowDragOver(event,'${catId}')" ondragleave="metaRowDragLeave(event)" ondrop="metaRowDrop(event,'${catId}','${f.id}')"`;
+    const handle = `<span class="meta-drag-handle" draggable="true"
+      ondragstart="metaDragStart(event,'${catId}','${f.id}')" ondragend="dragEndCommon(event)" title="Drag to reorder">⋮⋮</span>`;
+    if (f.type === 'sep') {
+      return `<div class="meta-row sep" data-field-id="${f.id}" ${dragAttrs}>
+    ${handle}
+    <div class="meta-sep-line${f.key ? '' : ' empty'}" onclick="this.querySelector('input').focus()" title="${esc(f.key) || 'Click to add a label'}">
+      <input class="meta-sep-input" draggable="false" value="${esc(f.key)}" title="${esc(f.key) || 'Click to add a label'}"
+        style="width:${(f.key || '').length + 2}ch"
+        onblur="updateMetaFieldKey('${catId}','${f.id}',this)" onkeydown="if(event.key==='Enter')this.blur()">
+    </div>
+    <button class="meta-del-btn" draggable="false" onclick="removeMetaField('${catId}','${f.id}')" title="Remove separator">×</button>
+  </div>`;
+    }
     const isBool = f.type === 'bool';
     const v = values[f.id];
     const boolCls = !isBool ? '' : v === true ? ' bool bool-yes' : v === false ? ' bool bool-no' : ' bool';
@@ -314,10 +342,8 @@ function modelCardHtml(cat, m) {
       ? `<button class="meta-bool-btn" draggable="false" onclick="cycleMetaBool('${catId}','${m.id}','${f.id}')" title="Click to toggle Yes / No / unset">${v === true ? '✓' : v === false ? '✗' : '—'}</button>`
       : `<input class="meta-val-input" draggable="false" placeholder="Value" value="${esc(v ?? '')}"
       onblur="updateMetaValue('${catId}','${m.id}','${f.id}',this)" onkeydown="if(event.key==='Enter')this.blur()">`;
-    return `<div class="meta-row${boolCls}" data-field-id="${f.id}"
-      ondragover="metaRowDragOver(event,'${catId}')" ondragleave="metaRowDragLeave(event)" ondrop="metaRowDrop(event,'${catId}','${f.id}')">
-    <span class="meta-drag-handle" draggable="true"
-      ondragstart="metaDragStart(event,'${catId}','${f.id}')" ondragend="dragEndCommon(event)" title="Drag to reorder">⋮⋮</span>
+    return `<div class="meta-row${boolCls}" data-field-id="${f.id}" ${dragAttrs}>
+    ${handle}
     <input class="meta-key-input" draggable="false" placeholder="Field" value="${esc(f.key)}" title="${esc(f.key)}"
       onblur="updateMetaFieldKey('${catId}','${f.id}',this)" onkeydown="if(event.key==='Enter')this.blur()">
     ${valueEl}
@@ -362,7 +388,10 @@ function modelCardHtml(cat, m) {
     </div>
     <div class="model-meta">
       ${metaRows}
-      <button class="meta-add-btn" draggable="false" onclick="addMetaField('${catId}')">+ Field</button>
+      <div class="meta-add-row">
+        <button class="meta-add-btn" draggable="false" onclick="addMetaField('${catId}')">+ Field</button>
+        <button class="meta-add-btn sep" draggable="false" onclick="addMetaField('${catId}','sep')" title="Add separator">+ ―</button>
+      </div>
     </div>
     <div class="model-prices">
       ${priceRows}
@@ -426,15 +455,16 @@ function updateModelField(catId, modelId, field, el) {
 }
 
 // ── Metadata fields (shared schema per category) ──────────────────────────────
-function addMetaField(catId) {
+function addMetaField(catId, type) {
   const cat = S.categories.find(c => c.id === catId);
   if (!cat) return;
   cat.metaFields = cat.metaFields || [];
   const field = { id: uid(), key: '' };
+  if (type) field.type = type;
   cat.metaFields.push(field);
   persist(); render();
   requestAnimationFrame(() => {
-    document.querySelector(`.meta-row[data-field-id="${field.id}"] .meta-key-input`)?.focus();
+    document.querySelector(`.meta-row[data-field-id="${field.id}"] :is(.meta-key-input,.meta-sep-input)`)?.focus();
   });
 }
 function updateMetaFieldKey(catId, fieldId, el) {
@@ -496,7 +526,7 @@ function removeMetaField(catId, fieldId) {
   const cat = S.categories.find(c => c.id === catId);
   if (!cat) return;
   const field = cat.metaFields.find(f => f.id === fieldId);
-  if (!confirm(`Remove field "${field?.key || '(untitled)'}" from all models in this category?`)) return;
+  if (field?.type !== 'sep' && !confirm(`Remove field "${field?.key || '(untitled)'}" from all models in this category?`)) return;
   cat.metaFields = cat.metaFields.filter(f => f.id !== fieldId);
   (cat.models || []).forEach(m => { if (m.metaValues) delete m.metaValues[fieldId]; });
   persist(); render();
