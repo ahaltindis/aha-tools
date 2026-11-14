@@ -152,6 +152,15 @@ body {
 .meta-key-input:focus, .meta-val-input:focus { outline: none; box-shadow: 0 0 0 1.5px var(--accent); }
 .meta-del-btn { border: none; background: transparent; color: var(--text-muted); cursor: pointer; font-size: 12px; padding: 0 3px; }
 .meta-del-btn:hover { color: var(--red); }
+.meta-drag-handle {
+  flex-shrink: 0; align-self: center; color: var(--text-muted); font-size: 10px; line-height: 1;
+  cursor: grab; user-select: none; opacity: 0.35; transition: opacity 0.12s;
+}
+.meta-drag-handle:active { cursor: grabbing; }
+.meta-row:hover .meta-drag-handle { opacity: 1; }
+.meta-row.dragging { opacity: 0.35; }
+.meta-row.drag-over-top { box-shadow: 0 -2px 0 var(--accent); }
+.meta-row.drag-over-bottom { box-shadow: 0 2px 0 var(--accent); }
 .meta-type-btn { border: none; background: transparent; color: var(--text-muted); cursor: pointer; font-size: 11px; padding: 0 2px; opacity: 0.6; }
 .meta-type-btn:hover { color: var(--accent); opacity: 1; }
 .meta-row.bool { border-radius: 4px; }
@@ -305,7 +314,10 @@ function modelCardHtml(cat, m) {
       ? `<button class="meta-bool-btn" draggable="false" onclick="cycleMetaBool('${catId}','${m.id}','${f.id}')" title="Click to toggle Yes / No / unset">${v === true ? '✓' : v === false ? '✗' : '—'}</button>`
       : `<input class="meta-val-input" draggable="false" placeholder="Value" value="${esc(v ?? '')}"
       onblur="updateMetaValue('${catId}','${m.id}','${f.id}',this)" onkeydown="if(event.key==='Enter')this.blur()">`;
-    return `<div class="meta-row${boolCls}" data-field-id="${f.id}">
+    return `<div class="meta-row${boolCls}" data-field-id="${f.id}"
+      ondragover="metaRowDragOver(event,'${catId}')" ondragleave="metaRowDragLeave(event)" ondrop="metaRowDrop(event,'${catId}','${f.id}')">
+    <span class="meta-drag-handle" draggable="true"
+      ondragstart="metaDragStart(event,'${catId}','${f.id}')" ondragend="dragEndCommon(event)" title="Drag to reorder">⋮⋮</span>
     <input class="meta-key-input" draggable="false" placeholder="Field" value="${esc(f.key)}" title="${esc(f.key)}"
       onblur="updateMetaFieldKey('${catId}','${f.id}',this)" onkeydown="if(event.key==='Enter')this.blur()">
     ${valueEl}
@@ -626,6 +638,7 @@ function modelDragStart(e, catId, modelId) {
 }
 function modelCardDragOver(e) {
   e.preventDefault(); e.stopPropagation();
+  if (!modelDragCtx) return;
   const rect = e.currentTarget.getBoundingClientRect();
   const before = (e.clientX - rect.left) < rect.width / 2;
   e.currentTarget.classList.toggle('drag-over-left', before);
@@ -651,6 +664,7 @@ function stripDrop(e, catId) {
   modelDragCtx = null;
 }
 function dragEndCommon() {
+  metaDragCtx = null;
   document.querySelectorAll('.dragging,.drag-over-left,.drag-over-right,.drag-over-top,.drag-over-bottom')
     .forEach(el => el.classList.remove('dragging', 'drag-over-left', 'drag-over-right', 'drag-over-top', 'drag-over-bottom'));
 }
@@ -667,6 +681,46 @@ function moveModel(srcCatId, modelId, targetCatId, targetModelId, before) {
     const idx = tgtCat.models.findIndex(m => m.id === targetModelId);
     tgtCat.models.splice(before ? idx : idx + 1, 0, model);
   }
+  persist(); render();
+}
+
+// ── Drag and drop: metadata fields (reorders the shared schema) ───────────────
+let metaDragCtx = null;
+function metaDragStart(e, catId, fieldId) {
+  e.stopPropagation();
+  metaDragCtx = { catId, fieldId };
+  e.dataTransfer.effectAllowed = 'move';
+  e.dataTransfer.setData('text/plain', fieldId);
+  setTimeout(() => document.querySelectorAll(`.meta-row[data-field-id="${fieldId}"]`).forEach(el => el.classList.add('dragging')), 0);
+}
+function metaRowDragOver(e, catId) {
+  if (!metaDragCtx || metaDragCtx.catId !== catId) return;
+  e.preventDefault(); e.stopPropagation();
+  const rect = e.currentTarget.getBoundingClientRect();
+  const before = (e.clientY - rect.top) < rect.height / 2;
+  e.currentTarget.classList.toggle('drag-over-top', before);
+  e.currentTarget.classList.toggle('drag-over-bottom', !before);
+}
+function metaRowDragLeave(e) {
+  e.currentTarget.classList.remove('drag-over-top', 'drag-over-bottom');
+}
+function metaRowDrop(e, catId, fieldId) {
+  if (!metaDragCtx || metaDragCtx.catId !== catId) return;
+  e.preventDefault(); e.stopPropagation();
+  e.currentTarget.classList.remove('drag-over-top', 'drag-over-bottom');
+  const srcId = metaDragCtx.fieldId;
+  metaDragCtx = null;
+  if (srcId === fieldId) return;
+  const cat = S.categories.find(c => c.id === catId);
+  if (!cat?.metaFields) return;
+  const rect = e.currentTarget.getBoundingClientRect();
+  const before = (e.clientY - rect.top) < rect.height / 2;
+  const srcIdx = cat.metaFields.findIndex(f => f.id === srcId);
+  if (srcIdx === -1) return;
+  const [moved] = cat.metaFields.splice(srcIdx, 1);
+  let tgtIdx = cat.metaFields.findIndex(f => f.id === fieldId);
+  if (!before) tgtIdx++;
+  cat.metaFields.splice(tgtIdx, 0, moved);
   persist(); render();
 }
 
