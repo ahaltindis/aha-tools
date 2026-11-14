@@ -402,7 +402,10 @@ function addModel(catId) {
   const cat = S.categories.find(c => c.id === catId);
   if (!cat) return;
   cat.models = cat.models || [];
-  cat.models.push({ id: uid(), brand: '', name: '', image: null, metaValues: {}, prices: [] });
+  // Prefill field values from the rightmost model — similar models share most specs
+  const last = cat.models[cat.models.length - 1];
+  const metaValues = last ? { ...(last.metaValues || {}) } : {};
+  cat.models.push({ id: uid(), brand: '', name: '', image: null, metaValues, prices: [] });
   persist(); render();
 }
 function deleteModel(catId, modelId) {
