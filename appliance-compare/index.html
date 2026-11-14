@@ -639,7 +639,11 @@ function readImageFile(file, catId, modelId) {
       const w = Math.round(img.width * scale), h = Math.round(img.height * scale);
       const canvas = document.createElement('canvas');
       canvas.width = w; canvas.height = h;
-      canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+      const ctx = canvas.getContext('2d');
+      // JPEG has no alpha, so transparent pixels would turn black — fill with the image box background first
+      ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--surface-muted').trim() || '#fff';
+      ctx.fillRect(0, 0, w, h);
+      ctx.drawImage(img, 0, 0, w, h);
       const dataUrl = canvas.toDataURL('image/jpeg', 0.82);
       const cat = S.categories.find(c => c.id === catId);
       const model = cat?.models.find(m => m.id === modelId);
