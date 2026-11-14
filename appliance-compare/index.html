@@ -80,6 +80,15 @@ body {
   font-size: 11px; padding: 1px 7px; border-radius: 10px; flex-shrink: 0;
 }
 
+.cat-width { display: flex; align-items: center; gap: 2px; flex-shrink: 0; }
+.cat-width-btn {
+  border: none; background: transparent; color: var(--text-muted); cursor: pointer;
+  font-size: 10px; padding: 3px 5px; border-radius: 4px; line-height: 1;
+}
+.cat-width-btn:hover:not(:disabled) { color: var(--accent); background: var(--surface); }
+.cat-width-btn:disabled { opacity: 0.3; cursor: default; }
+.cat-width-val { font-size: 11px; color: var(--text-muted); min-width: 40px; text-align: center; font-variant-numeric: tabular-nums; }
+
 .cat-strip { display: flex; gap: 12px; padding: 14px; overflow-x: auto; }
 
 .model-card {
@@ -299,6 +308,7 @@ function render() {
 
 function catRowHtml(cat) {
   const models = cat.models || [];
+  const width = cat.cardWidth || CARD_W_DEFAULT;
   return `<div class="cat-row" data-cat-id="${cat.id}">
     <div class="cat-header"
       ondragover="catHeaderDragOver(event)" ondragleave="catHeaderDragLeave(event)" ondrop="catHeaderDrop(event,'${cat.id}')">
@@ -307,6 +317,11 @@ function catRowHtml(cat) {
       <input class="cat-name-input" value="${esc(cat.name)}"
         onblur="renameCategory('${cat.id}',this)" onkeydown="if(event.key==='Enter')this.blur()">
       <span class="cat-count">${models.length}</span>
+      <div class="cat-width" title="Model card width">
+        <button class="cat-width-btn" draggable="false" onclick="changeCardWidth('${cat.id}',-1)" title="Narrower"${width <= CARD_W_MIN ? ' disabled' : ''}>◀</button>
+        <span class="cat-width-val">${width}px</span>
+        <button class="cat-width-btn" draggable="false" onclick="changeCardWidth('${cat.id}',1)" title="Wider"${width >= CARD_W_MAX ? ' disabled' : ''}>▶</button>
+      </div>
       <button class="btn btn-sm btn-danger" draggable="false" onclick="deleteCategory('${cat.id}')">Delete</button>
     </div>
     <div class="cat-strip" ondragover="stripDragOver(event)" ondrop="stripDrop(event,'${cat.id}')">
@@ -318,6 +333,8 @@ function catRowHtml(cat) {
 
 function modelCardHtml(cat, m) {
   const catId = cat.id;
+  // Only set inline when customised, so the mobile default from CSS still applies
+  const widthStyle = cat.cardWidth ? ` style="flex-basis:${cat.cardWidth}px;width:${cat.cardWidth}px"` : '';
   const fields = cat.metaFields || [];
   const values = m.metaValues || {};
   const metaRows = fields.map(f => {
@@ -372,7 +389,7 @@ function modelCardHtml(cat, m) {
     </div>
   </div>`).join('');
 
-  return `<div class="model-card" data-model-id="${m.id}"
+  return `<div class="model-card" data-model-id="${m.id}"${widthStyle}
       ondragover="modelCardDragOver(event)" ondragleave="modelCardDragLeave(event)" ondrop="modelCardDrop(event,'${catId}','${m.id}')">
     <div class="card-drag-handle" draggable="true"
       ondragstart="modelDragStart(event,'${catId}','${m.id}')" ondragend="dragEndCommon(event)" title="Drag to reorder">⋮⋮</div>
@@ -419,6 +436,14 @@ function renameCategory(catId, el) {
   if (!val) { el.value = cat.name; return; }
   if (cat.name === val) return;
   cat.name = val; persist();
+}
+const CARD_W_DEFAULT = 220, CARD_W_MIN = 160, CARD_W_MAX = 480, CARD_W_STEP = 20;
+function changeCardWidth(catId, dir) {
+  const cat = S.categories.find(c => c.id === catId);
+  if (!cat) return;
+  const w = Math.min(CARD_W_MAX, Math.max(CARD_W_MIN, (cat.cardWidth || CARD_W_DEFAULT) + dir * CARD_W_STEP));
+  if (w === CARD_W_DEFAULT) delete cat.cardWidth; else cat.cardWidth = w;
+  persist(); render();
 }
 function deleteCategory(catId) {
   if (!confirm('Delete this category and all its models?')) return;
