@@ -303,7 +303,16 @@ function render() {
     return;
   }
 
+  // Re-rendering replaces the strips, so keep each category's horizontal scroll
+  const scrolls = {};
+  wrap.querySelectorAll('.cat-row').forEach(row => {
+    scrolls[row.dataset.catId] = row.querySelector('.cat-strip')?.scrollLeft || 0;
+  });
   wrap.innerHTML = S.categories.map(catRowHtml).join('') + inlineCat;
+  wrap.querySelectorAll('.cat-row').forEach(row => {
+    const strip = row.querySelector('.cat-strip');
+    if (strip && scrolls[row.dataset.catId]) strip.scrollLeft = scrolls[row.dataset.catId];
+  });
 }
 
 function catRowHtml(cat) {
