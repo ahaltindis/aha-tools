@@ -152,6 +152,19 @@ body {
 .meta-key-input:focus, .meta-val-input:focus { outline: none; box-shadow: 0 0 0 1.5px var(--accent); }
 .meta-del-btn { border: none; background: transparent; color: var(--text-muted); cursor: pointer; font-size: 12px; padding: 0 3px; }
 .meta-del-btn:hover { color: var(--red); }
+.meta-type-btn { border: none; background: transparent; color: var(--text-muted); cursor: pointer; font-size: 11px; padding: 0 2px; opacity: 0.6; }
+.meta-type-btn:hover { color: var(--accent); opacity: 1; }
+.meta-row.bool { border-radius: 4px; }
+.meta-row.bool-yes { background: #ecfdf5; }
+.meta-row.bool-no { background: #fef2f2; }
+.meta-row.bool-yes .meta-key-input, .meta-row.bool-no .meta-key-input { background: transparent; }
+.meta-bool-btn {
+  flex: 1; min-width: 0; font-size: 11px; border: none; background: var(--surface-muted);
+  border-radius: 4px; padding: 3px 5px; font-family: inherit; color: var(--text-muted);
+  text-align: left; cursor: pointer;
+}
+.meta-row.bool-yes .meta-bool-btn { background: transparent; color: #047857; }
+.meta-row.bool-no .meta-bool-btn { background: transparent; color: #b91c1c; }
 .meta-add-btn {
   font-size: 11px; color: var(--accent); background: transparent; border: 1px dashed var(--border);
   border-radius: 4px; padding: 3px 6px; cursor: pointer; width: 100%; font-family: inherit;
@@ -283,13 +296,22 @@ function modelCardHtml(cat, m) {
   const catId = cat.id;
   const fields = cat.metaFields || [];
   const values = m.metaValues || {};
-  const metaRows = fields.map(f => `<div class="meta-row" data-field-id="${f.id}">
+  const metaRows = fields.map(f => {
+    const isBool = f.type === 'bool';
+    const v = values[f.id];
+    const boolCls = !isBool ? '' : v === true ? ' bool bool-yes' : v === false ? ' bool bool-no' : ' bool';
+    const valueEl = isBool
+      ? `<button class="meta-bool-btn" draggable="false" onclick="cycleMetaBool('${catId}','${m.id}','${f.id}')" title="Click to toggle Yes / No / unset">${v === true ? '✓ Yes' : v === false ? '✗ No' : '—'}</button>`
+      : `<input class="meta-val-input" draggable="false" placeholder="Value" value="${esc(v ?? '')}"
+      onblur="updateMetaValue('${catId}','${m.id}','${f.id}',this)" onkeydown="if(event.key==='Enter')this.blur()">`;
+    return `<div class="meta-row${boolCls}" data-field-id="${f.id}">
     <input class="meta-key-input" draggable="false" placeholder="Field" value="${esc(f.key)}"
       onblur="updateMetaFieldKey('${catId}','${f.id}',this)" onkeydown="if(event.key==='Enter')this.blur()">
-    <input class="meta-val-input" draggable="false" placeholder="Value" value="${esc(values[f.id] || '')}"
-      onblur="updateMetaValue('${catId}','${m.id}','${f.id}',this)" onkeydown="if(event.key==='Enter')this.blur()">
+    ${valueEl}
+    <button class="meta-type-btn" draggable="false" onclick="toggleMetaFieldType('${catId}','${f.id}')" title="${isBool ? 'Switch to text field' : 'Switch to Yes/No field'}">${isBool ? 'Aa' : '✓✗'}</button>
     <button class="meta-del-btn" draggable="false" onclick="removeMetaField('${catId}','${f.id}')" title="Remove field from all models in this category">×</button>
-  </div>`).join('');
+  </div>`;
+  }).join('');
 
   const imgInner = m.image
     ? `<img src="${m.image}" draggable="false">
@@ -417,6 +439,42 @@ function updateMetaValue(catId, modelId, fieldId, el) {
   if ((model.metaValues[fieldId] || '') === val) return;
   model.metaValues[fieldId] = val;
   persist();
+}
+// Switching type applies to the whole category (fields are a shared schema);
+// existing values are converted so nothing obvious is lost.
+const TRUE_WORDS = ['yes', 'y', 'true', '1', 'var', 'evet', '✓'];
+const FALSE_WORDS = ['no', 'n', 'false', '0', 'yok', 'hayır', 'hayir', '✗'];
+function toggleMetaFieldType(catId, fieldId) {
+  const cat = S.categories.find(c => c.id === catId);
+  const field = cat?.metaFields.find(f => f.id === fieldId);
+  if (!field) return;
+  const toBool = field.type !== 'bool';
+  (cat.models || []).forEach(m => {
+    const vals = m.metaValues || {};
+    if (!(fieldId in vals)) return;
+    const v = vals[fieldId];
+    if (toBool) {
+      const s = String(v).trim().toLowerCase();
+      if (TRUE_WORDS.includes(s)) vals[fieldId] = true;
+      else if (FALSE_WORDS.includes(s)) vals[fieldId] = false;
+      else delete vals[fieldId];
+    } else {
+      vals[fieldId] = v === true ? 'Yes' : v === false ? 'No' : '';
+    }
+  });
+  if (toBool) field.type = 'bool'; else delete field.type;
+  persist(); render();
+}
+function cycleMetaBool(catId, modelId, fieldId) {
+  const cat = S.categories.find(c => c.id === catId);
+  const model = cat?.models.find(m => m.id === modelId);
+  if (!model) return;
+  model.metaValues = model.metaValues || {};
+  const v = model.metaValues[fieldId];
+  if (v === true) model.metaValues[fieldId] = false;
+  else if (v === false) delete model.metaValues[fieldId];
+  else model.metaValues[fieldId] = true;
+  persist(); render();
 }
 function removeMetaField(catId, fieldId) {
   const cat = S.categories.find(c => c.id === catId);
