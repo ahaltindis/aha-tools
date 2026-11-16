@@ -49,6 +49,36 @@ body {
 .btn-danger { color: var(--red); border-color: #fecaca; }
 .btn-danger:hover { background: #fee2e2; }
 
+/* ── Pages ── */
+.pages-bar {
+  position: sticky; top: 52px; z-index: 99;
+  background: var(--surface); border-bottom: 1px solid var(--border);
+  padding: 0 20px; display: flex; align-items: flex-end; gap: 2px; overflow-x: auto;
+}
+.page-tab {
+  display: flex; align-items: center; gap: 2px; flex-shrink: 0;
+  padding: 7px 10px 6px; border: none; border-bottom: 2px solid transparent;
+  background: none; color: var(--text-muted); font-size: 13px; font-family: inherit;
+  cursor: pointer; white-space: nowrap;
+}
+.page-tab:hover { color: var(--text); }
+.page-tab.active { color: var(--accent); border-bottom-color: var(--accent); cursor: default; }
+.page-name-input {
+  border: none; background: transparent; color: inherit; font: inherit; font-weight: 600;
+  padding: 1px 3px; border-radius: 4px; min-width: 4ch;
+}
+.page-name-input:focus { outline: none; background: var(--accent-light); }
+.page-del-btn {
+  border: none; background: none; color: var(--text-muted); font-size: 14px; line-height: 1;
+  cursor: pointer; padding: 0 3px; border-radius: 3px;
+}
+.page-del-btn:hover { color: var(--red); }
+.page-add-btn {
+  flex-shrink: 0; border: none; background: none; color: var(--text-muted);
+  font-size: 16px; line-height: 1; padding: 6px 10px; cursor: pointer;
+}
+.page-add-btn:hover { color: var(--accent); }
+
 /* ── Board ── */
 .board-wrap { padding: 20px; }
 
@@ -250,6 +280,7 @@ body {
 @media (max-width: 600px) {
   .board-wrap { padding: 12px; }
   .header { padding: 0 12px; gap: 6px; }
+  .pages-bar { padding: 0 12px; }
   .model-card { flex-basis: 180px; width: 180px; }
 }
 </style>
@@ -263,12 +294,16 @@ body {
   <button class="btn btn-sm" id="btn-import">↑ Import</button>
 </header>
 
+<nav class="pages-bar" id="pages-bar"></nav>
+
 <div class="board-wrap">
   <div class="board" id="board"></div>
 </div>
 
 <script>
 // ── State ────────────────────────────────────────────────────────────────────
+// D holds every page; S is the active page, so board code only touches S.categories
+let D = { pages: [], activeId: null };
 let S = { categories: [] };
 
 const uid = () => Math.random().toString(36).slice(2, 9);
@@ -280,20 +315,95 @@ function esc(s) {
 function isUrl(s) { return /^https?:\/\//i.test(s || ''); }
 
 // ── Persistence ───────────────────────────────────────────────────────────────
+const STORE_KEY = 'any-compare-v2';
+// Single-board data from before pages; left in place, migrated on first load
+const LEGACY_KEYS = ['any-compare-v1', 'appliance-compare-v1'];
+
 function persist() {
-  try { localStorage.setItem('any-compare-v1', JSON.stringify(S)); }
+  try { localStorage.setItem(STORE_KEY, JSON.stringify(D)); }
   catch (e) { alert('Storage limit reached — try removing some images, or export your data as a backup.'); }
 }
 function hydrate() {
   try {
-    const r = localStorage.getItem('any-compare-v1') ?? localStorage.getItem('appliance-compare-v1');
-    if (r) S = JSON.parse(r);
+    const r = localStorage.getItem(STORE_KEY);
+    if (r) D = JSON.parse(r);
   } catch (_) {}
-  S.categories = S.categories || [];
+  D.pages = Array.isArray(D.pages) ? D.pages : [];
+  if (!D.pages.length) {
+    let legacy = null;
+    try {
+      const r = LEGACY_KEYS.map(k => localStorage.getItem(k)).find(Boolean);
+      if (r) legacy = JSON.parse(r);
+    } catch (_) {}
+    if (legacy?.categories?.length) addPage(nextPageName('Loaded'), legacy.categories);
+    else addPage(nextPageName('Page'), []);
+  }
+  D.pages.forEach(p => { p.categories = p.categories || []; });
+  selectPage(D.activeId);
+}
+
+// ── Pages ─────────────────────────────────────────────────────────────────────
+// "<prefix> #N" with N one above the highest existing for that prefix
+function nextPageName(prefix) {
+  const re = new RegExp(`^${prefix} #(\\d+)$`);
+  const max = D.pages.reduce((n, p) => Math.max(n, +(re.exec(p.name)?.[1] || 0)), 0);
+  return `${prefix} #${max + 1}`;
+}
+function addPage(name, categories) {
+  const page = { id: uid(), name, categories };
+  D.pages.push(page);
+  D.activeId = page.id;
+  S = page;
+  return page;
+}
+function selectPage(id) {
+  S = D.pages.find(p => p.id === id) || D.pages[0];
+  D.activeId = S.id;
+}
+function switchPage(id) {
+  if (id === S.id) return;
+  selectPage(id);
+  persist(); render();
+}
+function newPage() {
+  addPage(nextPageName('Page'), []);
+  persist(); render();
+  document.getElementById('inline-cat-input')?.focus();
+}
+function renamePage(id, input) {
+  const page = D.pages.find(p => p.id === id);
+  if (!page) return;
+  const name = input.value.trim();
+  if (!name) { input.value = page.name; return; }
+  if (name === page.name) return;
+  page.name = name;
+  persist(); renderPages();
+}
+function deletePage(id) {
+  const page = D.pages.find(p => p.id === id);
+  if (!page || D.pages.length < 2) return;
+  if (!confirm(`Delete page "${page.name}" and everything on it?`)) return;
+  const idx = D.pages.indexOf(page);
+  D.pages.splice(idx, 1);
+  selectPage(D.pages[Math.max(0, idx - 1)].id);
+  persist(); render();
+}
+function renderPages() {
+  const canDelete = D.pages.length > 1;
+  document.getElementById('pages-bar').innerHTML = D.pages.map(p => p.id === S.id
+    ? `<div class="page-tab active">
+        <input class="page-name-input" value="${esc(p.name)}" style="width:${p.name.length + 1}ch" title="Click to rename"
+          oninput="this.style.width=(this.value.length+1)+'ch'"
+          onblur="renamePage('${p.id}',this)" onkeydown="if(event.key==='Enter')this.blur()">
+        ${canDelete ? `<button class="page-del-btn" onclick="deletePage('${p.id}')" title="Delete page">×</button>` : ''}
+      </div>`
+    : `<button class="page-tab" onclick="switchPage('${p.id}')">${esc(p.name)}</button>`
+  ).join('') + `<button class="page-add-btn" onclick="newPage()" title="New page">+</button>`;
 }
 
 // ── Render ────────────────────────────────────────────────────────────────────
 function render() {
+  renderPages();
   const wrap = document.getElementById('board');
   const inlineCat = `<div class="inline-add-cat">
     <input class="inline-input" id="inline-cat-input" placeholder="Add category (e.g. Fridge)…" onkeydown="handleInlineCategory(event)">
@@ -798,7 +908,7 @@ function metaRowDrop(e, catId, fieldId) {
 
 // ── Export / Import ───────────────────────────────────────────────────────────
 function exportData() {
-  const data = JSON.stringify({ categories: S.categories }, null, 2);
+  const data = JSON.stringify({ pages: D.pages.map(p => ({ name: p.name, categories: p.categories })) }, null, 2);
   const blob = new Blob([data], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -817,9 +927,17 @@ function importData() {
     try {
       const text = await file.text();
       const parsed = JSON.parse(text);
-      if (!Array.isArray(parsed.categories)) throw new Error('Missing categories array — is this an Any Compare export?');
-      if (!confirm(`Import "${file.name}"? This will replace all current data.`)) return;
-      S.categories = sanitizeCategories(parsed.categories);
+      // Imports are added as new pages, never replacing existing ones.
+      // Exports from before pages (a bare categories array) become "Loaded #N".
+      let pages;
+      if (Array.isArray(parsed.pages)) {
+        pages = parsed.pages.map(p => ({ name: typeof p.name === 'string' && p.name.trim() ? p.name.trim() : null, categories: sanitizeCategories(p.categories) }));
+      } else if (Array.isArray(parsed.categories)) {
+        pages = [{ name: null, categories: sanitizeCategories(parsed.categories) }];
+      } else {
+        throw new Error('No pages or categories found — is this an Any Compare export?');
+      }
+      pages.forEach(p => addPage(p.name || nextPageName('Loaded'), p.categories));
       persist(); render();
     } catch (err) {
       alert('Import failed: ' + err.message);
@@ -923,14 +1041,13 @@ async function shareLink() {
 async function loadFromShareLink() {
   const param = new URLSearchParams(location.search).get(SHARE_PARAM);
   if (!param) return;
-  // Drop the param so a reload doesn't re-import over later edits
+  // Drop the param so a reload doesn't add the same page again
   const clean = new URL(location.href);
   clean.searchParams.delete(SHARE_PARAM);
   history.replaceState(null, '', clean);
   try {
     const categories = await decodeShare(param);
-    if (S.categories.length && !confirm('Load the shared comparison? This will replace all current data.')) return;
-    S.categories = categories;
+    addPage(nextPageName('Share'), categories);
     persist(); render();
   } catch (err) {
     alert('Could not open share link — it may be incomplete or corrupted.');
