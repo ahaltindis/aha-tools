@@ -258,6 +258,7 @@ body {
 
 <header class="header">
   <h1>Any Compare</h1>
+  <button class="btn btn-sm" id="btn-share">⇗ Share</button>
   <button class="btn btn-sm" id="btn-export">↓ Export</button>
   <button class="btn btn-sm" id="btn-import">↑ Import</button>
 </header>
@@ -818,7 +819,7 @@ function importData() {
       const parsed = JSON.parse(text);
       if (!Array.isArray(parsed.categories)) throw new Error('Missing categories array — is this an Any Compare export?');
       if (!confirm(`Import "${file.name}"? This will replace all current data.`)) return;
-      S.categories = parsed.categories || [];
+      S.categories = sanitizeCategories(parsed.categories);
       persist(); render();
     } catch (err) {
       alert('Import failed: ' + err.message);
@@ -827,12 +828,123 @@ function importData() {
   input.click();
 }
 
+// ── Share link ────────────────────────────────────────────────────────────────
+// Data travels in ?d=<version>.<base64url>. v1 = deflate-raw compressed JSON,
+// v0 = uncompressed JSON for browsers without CompressionStream.
+// Images are left out — they'd make the link far too long.
+const SHARE_PARAM = 'd';
+
+function toBase64Url(bytes) {
+  let bin = '';
+  for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+  return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+function fromBase64Url(str) {
+  const b64 = str.replace(/-/g, '+').replace(/_/g, '/');
+  const bin = atob(b64 + '='.repeat((4 - b64.length % 4) % 4));
+  return Uint8Array.from(bin, c => c.charCodeAt(0));
+}
+async function pipeBytes(bytes, stream) {
+  return new Uint8Array(await new Response(new Blob([bytes]).stream().pipeThrough(stream)).arrayBuffer());
+}
+
+async function encodeShare(categories) {
+  const json = new TextEncoder().encode(JSON.stringify({ categories }));
+  if (typeof CompressionStream === 'function') {
+    return '1.' + toBase64Url(await pipeBytes(json, new CompressionStream('deflate-raw')));
+  }
+  return '0.' + toBase64Url(json);
+}
+async function decodeShare(param) {
+  const dot = param.indexOf('.');
+  const ver = param.slice(0, dot), body = fromBase64Url(param.slice(dot + 1));
+  let bytes;
+  if (ver === '1') bytes = await pipeBytes(body, new DecompressionStream('deflate-raw'));
+  else if (ver === '0') bytes = body;
+  else throw new Error('Unknown link version');
+  const parsed = JSON.parse(new TextDecoder().decode(bytes));
+  if (!Array.isArray(parsed.categories)) throw new Error('Missing categories');
+  return sanitizeCategories(parsed.categories);
+}
+
+// Shared links and imported files are untrusted: ids, widths and images end up
+// in HTML attributes unescaped, so validate those strictly.
+const SAFE_ID = /^[\w-]{1,32}$/;
+const SAFE_IMAGE = /^data:image\/(jpeg|png|webp|gif);base64,[A-Za-z0-9+/=]+$/;
+function sanitizeCategories(cats) {
+  const str = v => typeof v === 'string' ? v : '';
+  const id = v => { if (typeof v !== 'string' || !SAFE_ID.test(v)) throw new Error('Invalid id in data'); return v; };
+  return (Array.isArray(cats) ? cats : []).map(c => {
+    const metaFields = (c.metaFields || []).map(f => ({ id: id(f.id), key: str(f.key), ...(['bool', 'sep'].includes(f.type) ? { type: f.type } : {}) }));
+    const width = Number(c.cardWidth);
+    return {
+      id: id(c.id), name: str(c.name),
+      ...(width ? { cardWidth: Math.min(CARD_W_MAX, Math.max(CARD_W_MIN, Math.round(width))) } : {}),
+      metaFields,
+      models: (c.models || []).map(m => {
+        const metaValues = {};
+        for (const f of metaFields) {
+          const v = m.metaValues?.[f.id];
+          if (typeof v === 'boolean' || typeof v === 'string') metaValues[f.id] = v;
+        }
+        return {
+          id: id(m.id), brand: str(m.brand), name: str(m.name),
+          image: SAFE_IMAGE.test(m.image || '') ? m.image : null,
+          metaValues,
+          prices: (m.prices || []).map(p => ({ id: id(p.id), price: str(p.price), source: str(p.source) })),
+        };
+      }),
+    };
+  });
+}
+
+async function shareLink() {
+  const btn = document.getElementById('btn-share');
+  try {
+    const categories = S.categories.map(c => ({ ...c, models: (c.models || []).map(m => ({ ...m, image: null })) }));
+    const url = new URL(location.href);
+    url.search = '';
+    url.hash = '';
+    url.searchParams.set(SHARE_PARAM, await encodeShare(categories));
+    const link = url.toString();
+    try {
+      await navigator.clipboard.writeText(link);
+      const label = btn.textContent;
+      btn.textContent = '✓ Link copied';
+      setTimeout(() => { btn.textContent = label; }, 1800);
+    } catch (_) {
+      prompt('Copy this link:', link);
+    }
+  } catch (err) {
+    alert('Could not create share link: ' + err.message);
+  }
+}
+
+async function loadFromShareLink() {
+  const param = new URLSearchParams(location.search).get(SHARE_PARAM);
+  if (!param) return;
+  // Drop the param so a reload doesn't re-import over later edits
+  const clean = new URL(location.href);
+  clean.searchParams.delete(SHARE_PARAM);
+  history.replaceState(null, '', clean);
+  try {
+    const categories = await decodeShare(param);
+    if (S.categories.length && !confirm('Load the shared comparison? This will replace all current data.')) return;
+    S.categories = categories;
+    persist(); render();
+  } catch (err) {
+    alert('Could not open share link — it may be incomplete or corrupted.');
+  }
+}
+
 // ── Wire up ───────────────────────────────────────────────────────────────────
+document.getElementById('btn-share').addEventListener('click', shareLink);
 document.getElementById('btn-export').addEventListener('click', exportData);
 document.getElementById('btn-import').addEventListener('click', importData);
 
 hydrate();
 render();
+loadFromShareLink();
 </script>
 </body>
 </html>
