@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Appliance Compare</title>
+<title>Any Compare</title>
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -257,7 +257,7 @@ body {
 <body>
 
 <header class="header">
-  <h1>Appliance Compare</h1>
+  <h1>Any Compare</h1>
   <button class="btn btn-sm" id="btn-export">↓ Export</button>
   <button class="btn btn-sm" id="btn-import">↑ Import</button>
 </header>
@@ -280,12 +280,12 @@ function isUrl(s) { return /^https?:\/\//i.test(s || ''); }
 
 // ── Persistence ───────────────────────────────────────────────────────────────
 function persist() {
-  try { localStorage.setItem('appliance-compare-v1', JSON.stringify(S)); }
+  try { localStorage.setItem('any-compare-v1', JSON.stringify(S)); }
   catch (e) { alert('Storage limit reached — try removing some images, or export your data as a backup.'); }
 }
 function hydrate() {
   try {
-    const r = localStorage.getItem('appliance-compare-v1');
+    const r = localStorage.getItem('any-compare-v1') ?? localStorage.getItem('appliance-compare-v1');
     if (r) S = JSON.parse(r);
   } catch (_) {}
   S.categories = S.categories || [];
@@ -802,7 +802,7 @@ function exportData() {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `appliance-compare-${todayStr()}.json`;
+  a.download = `any-compare-${todayStr()}.json`;
   a.click();
   URL.revokeObjectURL(url);
 }
@@ -816,7 +816,7 @@ function importData() {
     try {
       const text = await file.text();
       const parsed = JSON.parse(text);
-      if (!Array.isArray(parsed.categories)) throw new Error('Missing categories array — is this an Appliance Compare export?');
+      if (!Array.isArray(parsed.categories)) throw new Error('Missing categories array — is this an Any Compare export?');
       if (!confirm(`Import "${file.name}"? This will replace all current data.`)) return;
       S.categories = parsed.categories || [];
       persist(); render();
