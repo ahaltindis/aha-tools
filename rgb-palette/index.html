@@ -395,6 +395,13 @@ function renderRows() {
       const cp = document.createElement('button'); cp.className = 'btn btn-sm'; cp.textContent = 'Copy hexes';
       cp.onclick = e => { e.stopPropagation(); copy(row.colors.map(c => c.name ? `${c.name} ${c.hex}` : c.hex).join(', ')); };
       top.appendChild(cp);
+      const md = document.createElement('button'); md.className = 'btn btn-sm'; md.textContent = 'Copy markdown';
+      md.onclick = e => {
+        e.stopPropagation();
+        const lines = row.colors.map(c => `  - ${c.hex}${c.name ? ': ' + c.name : ''}`);
+        navigator.clipboard?.writeText(`### ${row.name}\n${lines.join('\n')}\n`).then(() => toast('Copied markdown'));
+      };
+      top.appendChild(md);
     }
     if (state.rows.length > 1) {
       const del = document.createElement('button'); del.className = 'btn btn-sm btn-danger'; del.textContent = 'Delete row';
