@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RGB Palette</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+:root {
+  --bg: #f1f5f9;
+  --surface: #ffffff;
+  --border: #e2e8f0;
+  --text: #1e293b;
+  --text-muted: #94a3b8;
+  --accent: #4f46e5;
+  --accent-light: #eef2ff;
+  --radius: 8px;
+  --red: #ef4444;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+}
+
+.header {
+  position: sticky; top: 0; z-index: 100;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 0 20px; height: 52px;
+  display: flex; align-items: center; gap: 10px;
+}
+.header h1 { font-size: 16px; font-weight: 700; color: var(--accent); margin-right: auto; }
+
+.btn {
+  padding: 6px 13px; border-radius: 6px;
+  border: 1px solid var(--border); background: var(--surface);
+  color: var(--text); font-size: 13px; font-family: inherit;
+  cursor: pointer; white-space: nowrap; transition: background 0.12s;
+}
+.btn:hover { background: var(--bg); }
+.btn-primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.btn-primary:hover { background: #4338ca; }
+.btn-sm { padding: 4px 10px; font-size: 12px; }
+.btn-danger { color: var(--red); border-color: #fecaca; }
+.btn-danger:hover { background: #fee2e2; }
+
+main { max-width: 1100px; margin: 0 auto; padding: 20px; display: flex; flex-direction: column; gap: 20px; }
+
+.card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 18px;
+}
+
+/* ── Editor ── */
+.editor { display: grid; grid-template-columns: 220px 1fr; gap: 24px; }
+@media (max-width: 720px) { .editor { grid-template-columns: 1fr; } }
+
+.preview {
+  height: 220px; border-radius: var(--radius);
+  border: 1px solid var(--border);
+  display: flex; align-items: flex-end; padding: 12px;
+  font-family: ui-monospace, monospace; font-size: 15px; font-weight: 600;
+}
+
+.controls { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+
+.hex-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.hex-input {
+  font-family: ui-monospace, monospace; font-size: 18px;
+  padding: 7px 10px; width: 130px;
+  border: 1px solid var(--border); border-radius: 6px; color: var(--text);
+}
+.hex-input:focus { outline: 2px solid var(--accent-light); border-color: var(--accent); }
+.hex-input.invalid { border-color: var(--red); }
+input[type=color] {
+  width: 40px; height: 38px; border: 1px solid var(--border);
+  border-radius: 6px; padding: 2px; background: var(--surface); cursor: pointer;
+}
+.values { font-family: ui-monospace, monospace; font-size: 12px; color: var(--text-muted); line-height: 1.6; }
+.values span { cursor: pointer; }
+.values span:hover { color: var(--accent); }
+
+.channel { display: grid; grid-template-columns: 16px 1fr 52px; gap: 10px; align-items: center; }
+.channel label { font-weight: 700; font-size: 13px; }
+.channel input[type=number] {
+  width: 52px; padding: 4px 6px; font-family: ui-monospace, monospace; font-size: 12px;
+  border: 1px solid var(--border); border-radius: 5px;
+}
+.track {
+  -webkit-appearance: none; appearance: none;
+  width: 100%; height: 22px; border-radius: 5px; border: 1px solid var(--border);
+  cursor: pointer;
+}
+.track::-webkit-slider-thumb {
+  -webkit-appearance: none; width: 10px; height: 26px; border-radius: 3px;
+  background: #fff; border: 2px solid #1e293b; box-shadow: 0 1px 3px rgba(0,0,0,.3);
+}
+.track::-moz-range-thumb {
+  width: 8px; height: 24px; border-radius: 3px;
+  background: #fff; border: 2px solid #1e293b;
+}
+
+.section-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: var(--text-muted); margin-bottom: 6px; }
+
+.strip { display: flex; border-radius: 6px; overflow: hidden; border: 1px solid var(--border); }
+.strip div { flex: 1; height: 30px; cursor: pointer; transition: transform .1s; }
+.strip div:hover { transform: scaleY(1.15); }
+.strip div.current { box-shadow: inset 0 0 0 2px #fff, inset 0 0 0 3px #1e293b; }
+
+/* ── Rows ── */
+.rows-head { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+.rows-head h2 { font-size: 14px; font-weight: 700; margin-right: auto; }
+.hint { font-size: 12px; color: var(--text-muted); }
+
+.row {
+  border: 2px solid var(--border); border-radius: var(--radius);
+  padding: 10px 12px 12px; margin-bottom: 12px; cursor: pointer;
+  transition: border-color .12s;
+}
+.row.active { border-color: var(--accent); background: #fafaff; }
+.row-top { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.row-name {
+  border: none; background: transparent; font: inherit; font-weight: 600; font-size: 13px;
+  padding: 2px 4px; border-radius: 4px; color: var(--text); min-width: 4ch;
+}
+.row-name:focus { outline: none; background: var(--accent-light); }
+.row.active .row-name { color: var(--accent); }
+.row-top .spacer { margin-left: auto; }
+.row-badge { font-size: 11px; color: var(--accent); font-weight: 600; }
+
+.swatches { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; min-height: 140px; align-items: stretch; }
+.swatch {
+  position: relative; flex-shrink: 0;
+  width: 64px; height: 130px; border-radius: 6px;
+  border: 1px solid rgba(0,0,0,.08);
+  display: flex; align-items: flex-end; justify-content: center; padding-bottom: 6px;
+  font-family: ui-monospace, monospace; font-size: 10px; font-weight: 600;
+  cursor: grab; user-select: none;
+}
+.swatch.dragging { opacity: .35; }
+.swatch.selected { outline: 3px solid var(--accent); outline-offset: 2px; }
+.swatch .del {
+  position: absolute; top: 3px; right: 3px; width: 18px; height: 18px;
+  border: none; border-radius: 50%; background: rgba(0,0,0,.35); color: #fff;
+  font-size: 12px; line-height: 18px; cursor: pointer; display: none;
+}
+.swatch:hover .del { display: block; }
+.empty {
+  flex: 1; display: flex; align-items: center; justify-content: center;
+  border: 2px dashed var(--border); border-radius: 6px; color: var(--text-muted); font-size: 12px;
+}
+.drop-marker { width: 4px; flex-shrink: 0; background: var(--accent); border-radius: 2px; }
+
+.toast {
+  position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+  background: #1e293b; color: #fff; padding: 8px 14px; border-radius: 6px; font-size: 13px;
+  opacity: 0; transition: opacity .2s; pointer-events: none;
+}
+.toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>RGB Palette</h1>
+  <button class="btn btn-sm btn-danger" id="clearAll">Clear all</button>
+</div>
+
+<main>
+  <section class="card editor">
+    <div class="preview" id="preview"></div>
+
+    <div class="controls">
+      <div class="hex-row">
+        <input class="hex-input" id="hex" value="#4F46E5" spellcheck="false" maxlength="7">
+        <input type="color" id="picker" value="#4f46e5" title="Pick">
+        <button class="btn btn-primary" id="save">Save to row</button>
+        <button class="btn" id="update" title="Replace the selected saved color">Update selected</button>
+      </div>
+      <div class="values" id="values"></div>
+
+      <div class="channel"><label style="color:#dc2626">R</label><input type="range" class="track" min="0" max="255" data-c="0"><input type="number" min="0" max="255" data-c="0"></div>
+      <div class="channel"><label style="color:#16a34a">G</label><input type="range" class="track" min="0" max="255" data-c="1"><input type="number" min="0" max="255" data-c="1"></div>
+      <div class="channel"><label style="color:#2563eb">B</label><input type="range" class="track" min="0" max="255" data-c="2"><input type="number" min="0" max="255" data-c="2"></div>
+
+      <div>
+        <div class="section-label">Tints &amp; shades</div>
+        <div class="strip" id="shades"></div>
+      </div>
+      <div>
+        <div class="section-label">Hue</div>
+        <div class="strip" id="hues"></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="rows-head">
+      <h2>Saved colors</h2>
+      <span class="hint">Click a row to make it active · click a color to edit · drag to reorder</span>
+      <button class="btn btn-sm" id="addRow">+ New row</button>
+    </div>
+    <div id="rows"></div>
+  </section>
+</main>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const KEY = 'rgb-palette-v1';
+const $ = id => document.getElementById(id);
+
+// ── Color helpers ──
+const clamp = v => Math.max(0, Math.min(255, Math.round(v)));
+const toHex = ([r, g, b]) => '#' + [r, g, b].map(v => clamp(v).toString(16).padStart(2, '0')).join('').toUpperCase();
+function parseHex(s) {
+  s = s.trim().replace(/^#/, '');
+  if (/^[0-9a-f]{3}$/i.test(s)) s = s.split('').map(c => c + c).join('');
+  if (!/^[0-9a-f]{6}$/i.test(s)) return null;
+  return [0, 2, 4].map(i => parseInt(s.slice(i, i + 2), 16));
+}
+function rgbToHsl([r, g, b]) {
+  r /= 255; g /= 255; b /= 255;
+  const max = Math.max(r, g, b), min = Math.min(r, g, b), l = (max + min) / 2;
+  let h = 0, s = 0;
+  if (max !== min) {
+    const d = max - min;
+    s = l > .5 ? d / (2 - max - min) : d / (max + min);
+    h = max === r ? (g - b) / d + (g < b ? 6 : 0) : max === g ? (b - r) / d + 2 : (r - g) / d + 4;
+    h *= 60;
+  }
+  return [h, s * 100, l * 100];
+}
+function hslToRgb([h, s, l]) {
+  s /= 100; l /= 100;
+  const k = n => (n + h / 30) % 12, a = s * Math.min(l, 1 - l);
+  const f = n => l - a * Math.max(-1, Math.min(k(n) - 3, 9 - k(n), 1));
+  return [f(0) * 255, f(8) * 255, f(4) * 255].map(clamp);
+}
+const luminance = ([r, g, b]) => (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+const textOn = rgb => luminance(rgb) > 0.6 ? '#1e293b' : '#ffffff';
+
+// ── State ──
+let state;
+try { state = JSON.parse(localStorage.getItem(KEY)); } catch {}
+if (!state || !Array.isArray(state.rows) || !state.rows.length) {
+  state = { rows: [{ name: 'Row 1', colors: [] }], active: 0, current: '#4F46E5' };
+}
+let selected = null; // { row, idx }
+let rgb = parseHex(state.current) || [79, 70, 229];
+
+const save = () => { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch {} };
+
+function toast(msg) {
+  const t = $('toast'); t.textContent = msg; t.classList.add('show');
+  clearTimeout(toast.t); toast.t = setTimeout(() => t.classList.remove('show'), 1200);
+}
+function copy(text) { navigator.clipboard?.writeText(text).then(() => toast('Copied ' + text)); }
+
+// ── Editor ──
+function setColor(c, { fromHexInput = false } = {}) {
+  rgb = c.map(clamp);
+  state.current = toHex(rgb);
+  save();
+  renderEditor(fromHexInput);
+}
+
+function renderEditor(fromHexInput) {
+  const hex = toHex(rgb), [r, g, b] = rgb, [h, s, l] = rgbToHsl(rgb);
+  const pv = $('preview');
+  pv.style.background = hex; pv.style.color = textOn(rgb); pv.textContent = hex;
+  if (!fromHexInput) { $('hex').value = hex; $('hex').classList.remove('invalid'); }
+  $('picker').value = hex.toLowerCase();
+
+  $('values').innerHTML =
+    `<span data-copy="${hex}">${hex}</span> · <span data-copy="rgb(${r}, ${g}, ${b})">rgb(${r}, ${g}, ${b})</span> · ` +
+    `<span data-copy="hsl(${Math.round(h)}, ${Math.round(s)}%, ${Math.round(l)}%)">hsl(${Math.round(h)}, ${Math.round(s)}%, ${Math.round(l)}%)</span>` +
+    ` <span style="cursor:default">(click to copy)</span>`;
+
+  document.querySelectorAll('.channel').forEach(ch => {
+    const i = +ch.querySelector('.track').dataset.c;
+    const lo = [...rgb], hi = [...rgb]; lo[i] = 0; hi[i] = 255;
+    const track = ch.querySelector('.track');
+    track.value = rgb[i];
+    track.style.background = `linear-gradient(to right, ${toHex(lo)}, ${toHex(hi)})`;
+    ch.querySelector('input[type=number]').value = rgb[i];
+  });
+
+  // tints & shades: lightness steps at current hue/saturation
+  const steps = [95, 85, 75, 65, 55, 45, 35, 25, 15, 8];
+  $('shades').innerHTML = '';
+  steps.forEach(L => addStripCell($('shades'), hslToRgb([h, s, L])));
+  // hue: rotate around wheel at current s/l
+  $('hues').innerHTML = '';
+  for (let k = 0; k < 12; k++) addStripCell($('hues'), hslToRgb([(h + k * 30) % 360, s, l]), k === 0);
+
+  document.getElementById('update').disabled = !selected;
+  document.getElementById('update').style.opacity = selected ? 1 : .5;
+}
+
+function addStripCell(parent, c, isCurrent) {
+  const d = document.createElement('div');
+  d.style.background = toHex(c);
+  d.title = toHex(c);
+  if (isCurrent) d.classList.add('current');
+  d.onclick = () => setColor(c);
+  parent.appendChild(d);
+}
+
+$('hex').addEventListener('input', e => {
+  const c = parseHex(e.target.value);
+  e.target.classList.toggle('invalid', !c);
+  if (c) setColor(c, { fromHexInput: true });
+});
+$('hex').addEventListener('paste', e => {
+  const text = (e.clipboardData || window.clipboardData).getData('text');
+  // first "#" followed by a 6- or 3-digit hex code; or the whole paste is a bare hex code
+  const m = text.match(/#([0-9a-f]{6}|[0-9a-f]{3})(?![0-9a-f])/i)
+         || text.match(/^\s*([0-9a-f]{6}|[0-9a-f]{3})\s*$/i);
+  if (!m) return; // let the browser paste normally
+  e.preventDefault();
+  setColor(parseHex(m[1]));
+});
+$('hex').addEventListener('blur', () => renderEditor(false));
+$('hex').addEventListener('keydown', e => { if (e.key === 'Enter') addColor(); });
+$('picker').addEventListener('input', e => setColor(parseHex(e.target.value)));
+document.querySelectorAll('.channel input').forEach(inp => inp.addEventListener('input', e => {
+  const c = [...rgb]; c[+e.target.dataset.c] = +e.target.value || 0; setColor(c);
+}));
+$('values').addEventListener('click', e => { if (e.target.dataset.copy) copy(e.target.dataset.copy); });
+
+// ── Rows ──
+function addColor() {
+  const row = state.rows[state.active] || state.rows[0];
+  row.colors.push(toHex(rgb));
+  save(); renderRows();
+  const sw = document.querySelector(`.row[data-i="${state.active}"] .swatches`);
+  if (sw) sw.scrollLeft = sw.scrollWidth;
+}
+$('save').onclick = addColor;
+$('update').onclick = () => {
+  if (!selected) return;
+  state.rows[selected.row].colors[selected.idx] = toHex(rgb);
+  save(); renderRows();
+};
+$('addRow').onclick = () => {
+  state.rows.push({ name: 'Row ' + (state.rows.length + 1), colors: [] });
+  state.active = state.rows.length - 1;
+  save(); renderRows();
+};
+$('clearAll').onclick = () => {
+  if (!confirm('Delete all rows and saved colors?')) return;
+  state.rows = [{ name: 'Row 1', colors: [] }]; state.active = 0; selected = null;
+  save(); renderRows(); renderEditor();
+};
+
+let drag = null; // { row, idx }
+let marker = document.createElement('div'); marker.className = 'drop-marker';
+
+function renderRows() {
+  const box = $('rows'); box.innerHTML = '';
+  state.rows.forEach((row, ri) => {
+    const el = document.createElement('div');
+    el.className = 'row' + (ri === state.active ? ' active' : '');
+    el.dataset.i = ri;
+    el.onclick = () => { if (state.active !== ri) { state.active = ri; save(); renderRows(); } };
+
+    const top = document.createElement('div'); top.className = 'row-top';
+    const name = document.createElement('input');
+    name.className = 'row-name'; name.value = row.name; name.size = Math.max(4, row.name.length);
+    name.oninput = () => { row.name = name.value; name.size = Math.max(4, name.value.length); save(); };
+    top.appendChild(name);
+    if (ri === state.active) { const b = document.createElement('span'); b.className = 'row-badge'; b.textContent = '● active'; top.appendChild(b); }
+    const sp = document.createElement('span'); sp.className = 'spacer hint'; sp.textContent = row.colors.length + ' colors'; top.appendChild(sp);
+    if (row.colors.length) {
+      const cp = document.createElement('button'); cp.className = 'btn btn-sm'; cp.textContent = 'Copy hexes';
+      cp.onclick = e => { e.stopPropagation(); copy(row.colors.join(', ')); };
+      top.appendChild(cp);
+    }
+    if (state.rows.length > 1) {
+      const del = document.createElement('button'); del.className = 'btn btn-sm btn-danger'; del.textContent = 'Delete row';
+      del.onclick = e => {
+        e.stopPropagation();
+        if (row.colors.length && !confirm(`Delete "${row.name}"?`)) return;
+        state.rows.splice(ri, 1);
+        state.active = Math.min(state.active, state.rows.length - 1);
+        selected = null; save(); renderRows(); renderEditor();
+      };
+      top.appendChild(del);
+    }
+    el.appendChild(top);
+
+    const sw = document.createElement('div'); sw.className = 'swatches';
+    if (!row.colors.length) {
+      const em = document.createElement('div'); em.className = 'empty';
+      em.textContent = ri === state.active ? 'Press "Save to row" to add the current color' : 'Empty — click to activate';
+      sw.appendChild(em);
+    }
+    row.colors.forEach((hex, ci) => {
+      const c = parseHex(hex);
+      const s = document.createElement('div');
+      s.className = 'swatch' + (selected && selected.row === ri && selected.idx === ci ? ' selected' : '');
+      s.style.background = hex; s.style.color = textOn(c); s.textContent = hex; s.title = hex;
+      s.draggable = true;
+      s.onclick = e => {
+        e.stopPropagation();
+        selected = { row: ri, idx: ci }; state.active = ri;
+        save(); setColor(c); renderRows();
+      };
+      s.ondragstart = e => { drag = { row: ri, idx: ci }; s.classList.add('dragging'); e.dataTransfer.effectAllowed = 'move'; };
+      s.ondragend = () => { drag = null; marker.remove(); s.classList.remove('dragging'); };
+      const x = document.createElement('button'); x.className = 'del'; x.textContent = '×'; x.title = 'Remove';
+      x.onclick = e => {
+        e.stopPropagation();
+        row.colors.splice(ci, 1);
+        if (selected && selected.row === ri) selected = null;
+        save(); renderRows(); renderEditor();
+      };
+      s.appendChild(x);
+      sw.appendChild(s);
+    });
+
+    // drop handling: insert at position based on cursor x
+    const dropIndex = x => {
+      const items = [...sw.querySelectorAll('.swatch')];
+      const i = items.findIndex(it => { const r = it.getBoundingClientRect(); return x < r.left + r.width / 2; });
+      return i === -1 ? items.length : i;
+    };
+    el.ondragover = e => {
+      if (!drag) return; e.preventDefault();
+      const i = dropIndex(e.clientX), items = sw.querySelectorAll('.swatch');
+      sw.querySelector('.empty')?.remove();
+      if (i < items.length) sw.insertBefore(marker, items[i]); else sw.appendChild(marker);
+    };
+    el.ondrop = e => {
+      if (!drag) return; e.preventDefault();
+      let i = dropIndex(e.clientX);
+      const [hex] = state.rows[drag.row].colors.splice(drag.idx, 1);
+      if (drag.row === ri && drag.idx < i) i--;
+      row.colors.splice(i, 0, hex);
+      selected = null; drag = null; marker.remove();
+      save(); renderRows(); renderEditor();
+    };
+
+    el.appendChild(sw);
+    box.appendChild(el);
+  });
+}
+
+renderEditor();
+renderRows();
+</script>
+</body>
+</html>
