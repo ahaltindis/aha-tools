@@ -135,12 +135,23 @@ input[type=color] {
 .swatches { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; min-height: 140px; align-items: stretch; }
 .swatch {
   position: relative; flex-shrink: 0;
-  width: 64px; height: 130px; border-radius: 6px;
+  width: 76px; height: 130px; border-radius: 6px;
   border: 1px solid rgba(0,0,0,.08);
-  display: flex; align-items: flex-end; justify-content: center; padding-bottom: 6px;
+  display: flex; flex-direction: column; align-items: center; justify-content: flex-end;
+  gap: 2px; padding: 0 4px 6px; text-align: center;
   font-family: ui-monospace, monospace; font-size: 10px; font-weight: 600;
-  cursor: grab; user-select: none;
+  cursor: grab; user-select: none; touch-action: manipulation;
 }
+.swatch .cname {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 11px; line-height: 1.2; word-break: break-word;
+}
+.swatch .cname-edit {
+  width: 100%; padding: 2px 3px; border: none; border-radius: 3px;
+  font: 600 11px -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  text-align: center; background: rgba(255,255,255,.9); color: #1e293b;
+}
+.swatch .cname-edit:focus { outline: 2px solid var(--accent); }
 .swatch.dragging { opacity: .35; }
 .swatch.selected { outline: 3px solid var(--accent); outline-offset: 2px; }
 .swatch .del {
@@ -250,6 +261,8 @@ try { state = JSON.parse(localStorage.getItem(KEY)); } catch {}
 if (!state || !Array.isArray(state.rows) || !state.rows.length) {
   state = { rows: [{ name: 'Row 1', colors: [] }], active: 0, current: '#4F46E5' };
 }
+// colors used to be plain hex strings
+state.rows.forEach(row => { row.colors = row.colors.map(c => typeof c === 'string' ? { hex: c, name: '' } : c); });
 let selected = null; // { row, idx }
 let rgb = parseHex(state.current) || [79, 70, 229];
 
@@ -336,7 +349,7 @@ $('values').addEventListener('click', e => { if (e.target.dataset.copy) copy(e.t
 // ── Rows ──
 function addColor() {
   const row = state.rows[state.active] || state.rows[0];
-  row.colors.push(toHex(rgb));
+  row.colors.push({ hex: toHex(rgb), name: '' });
   save(); renderRows();
   const sw = document.querySelector(`.row[data-i="${state.active}"] .swatches`);
   if (sw) sw.scrollLeft = sw.scrollWidth;
@@ -344,7 +357,7 @@ function addColor() {
 $('save').onclick = addColor;
 $('update').onclick = () => {
   if (!selected) return;
-  state.rows[selected.row].colors[selected.idx] = toHex(rgb);
+  state.rows[selected.row].colors[selected.idx].hex = toHex(rgb);
   save(); renderRows();
 };
 $('addRow').onclick = () => {
@@ -359,6 +372,8 @@ $('clearAll').onclick = () => {
 };
 
 let drag = null; // { row, idx }
+let editing = null; // { row, idx } — swatch whose name is being edited in place
+let lastTap = { key: null, t: 0 }; // own double-tap detection: a click re-renders, so native dblclick never fires
 let marker = document.createElement('div'); marker.className = 'drop-marker';
 
 function renderRows() {
@@ -378,7 +393,7 @@ function renderRows() {
     const sp = document.createElement('span'); sp.className = 'spacer hint'; sp.textContent = row.colors.length + ' colors'; top.appendChild(sp);
     if (row.colors.length) {
       const cp = document.createElement('button'); cp.className = 'btn btn-sm'; cp.textContent = 'Copy hexes';
-      cp.onclick = e => { e.stopPropagation(); copy(row.colors.join(', ')); };
+      cp.onclick = e => { e.stopPropagation(); copy(row.colors.map(c => c.name ? `${c.name} ${c.hex}` : c.hex).join(', ')); };
       top.appendChild(cp);
     }
     if (state.rows.length > 1) {
@@ -400,14 +415,38 @@ function renderRows() {
       em.textContent = ri === state.active ? 'Press "Save to row" to add the current color' : 'Empty — click to activate';
       sw.appendChild(em);
     }
-    row.colors.forEach((hex, ci) => {
+    row.colors.forEach(({ hex, name: cname }, ci) => {
       const c = parseHex(hex);
       const s = document.createElement('div');
       s.className = 'swatch' + (selected && selected.row === ri && selected.idx === ci ? ' selected' : '');
-      s.style.background = hex; s.style.color = textOn(c); s.textContent = hex; s.title = hex;
-      s.draggable = true;
+      s.style.background = hex; s.style.color = textOn(c); s.title = cname ? `${cname} ${hex}` : hex;
+      const isEditing = editing && editing.row === ri && editing.idx === ci;
+      if (isEditing) {
+        const inp = document.createElement('input');
+        inp.className = 'cname-edit'; inp.value = cname; inp.placeholder = 'Name'; inp.spellcheck = false;
+        let done = false;
+        const finish = keep => {
+          if (done) return; done = true;
+          if (keep) {
+            row.colors[ci].name = inp.value.trim();
+            save();
+          }
+          editing = null; renderRows();
+        };
+        inp.onclick = e => e.stopPropagation();
+        inp.onkeydown = e => { if (e.key === 'Enter') finish(true); else if (e.key === 'Escape') finish(false); };
+        inp.onblur = () => finish(true);
+        s.appendChild(inp);
+        requestAnimationFrame(() => { inp.focus(); inp.select(); });
+      } else if (cname) { const n = document.createElement('div'); n.className = 'cname'; n.textContent = cname; s.appendChild(n); }
+      const hx = document.createElement('div'); hx.textContent = hex; s.appendChild(hx);
+      s.draggable = !isEditing;
       s.onclick = e => {
         e.stopPropagation();
+        if (isEditing) return;
+        const key = ri + ':' + ci, now = Date.now();
+        if (lastTap.key === key && now - lastTap.t < 400) { lastTap.key = null; editing = { row: ri, idx: ci }; renderRows(); return; }
+        lastTap = { key, t: now };
         selected = { row: ri, idx: ci }; state.active = ri;
         save(); setColor(c); renderRows();
       };
@@ -439,9 +478,9 @@ function renderRows() {
     el.ondrop = e => {
       if (!drag) return; e.preventDefault();
       let i = dropIndex(e.clientX);
-      const [hex] = state.rows[drag.row].colors.splice(drag.idx, 1);
+      const [moved] = state.rows[drag.row].colors.splice(drag.idx, 1);
       if (drag.row === ri && drag.idx < i) i--;
-      row.colors.splice(i, 0, hex);
+      row.colors.splice(i, 0, moved);
       selected = null; drag = null; marker.remove();
       save(); renderRows(); renderEditor();
     };
