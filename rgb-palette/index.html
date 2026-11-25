@@ -217,6 +217,9 @@ input[type=color] {
 
 <div class="header">
   <h1>RGB Palette</h1>
+  <button class="btn btn-sm" id="importPage">Import page</button>
+  <button class="btn btn-sm" id="exportPage">Export page</button>
+  <input type="file" id="importFile" accept=".json,application/json" hidden>
   <button class="btn btn-sm btn-danger" id="clearAll">Clear page</button>
 </div>
 
@@ -626,6 +629,39 @@ $('addPage').onclick = () => {
   data.page = data.pages.length - 1;
   editingPage = data.page; selected = null;
   save(); renderAll();
+};
+
+// ── Import / export ──
+$('exportPage').onclick = () => {
+  const page = data.pages[data.page];
+  const blob = new Blob([JSON.stringify({ type: 'rgb-palette-page', version: 1, page }, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = (page.name.replace(/[^\w\- ]+/g, '').trim() || 'page') + '.json';
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+};
+$('importPage').onclick = () => $('importFile').click();
+$('importFile').onchange = async e => {
+  const file = e.target.files[0]; e.target.value = '';
+  if (!file) return;
+  try {
+    const json = JSON.parse(await file.text());
+    const src = json.page || json;
+    if (!Array.isArray(src.rows)) throw new Error('no rows');
+    const rows = src.rows.map((row, i) => ({
+      name: String(row.name || 'Row ' + (i + 1)),
+      colors: (row.colors || []).map(c => typeof c === 'string' ? { hex: c, name: '' } : { hex: c.hex, name: String(c.name || '') })
+        .filter(c => parseHex(c.hex || '')).map(c => ({ ...c, hex: toHex(parseHex(c.hex)) })),
+    }));
+    if (!rows.length) rows.push({ name: 'Row 1', colors: [] });
+    // imports always open as a new page
+    data.pages.push({ name: String(src.name || file.name.replace(/\.json$/i, '')), rows, active: 0 });
+    data.page = data.pages.length - 1; selected = null;
+    save(); renderAll(); toast('Imported "' + data.pages[data.page].name + '"');
+  } catch (err) {
+    toast('Not a valid page file');
+  }
 };
 
 function renderAll() { renderPages(); renderRows(); renderEditor(); }
