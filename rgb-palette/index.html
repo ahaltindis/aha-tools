@@ -48,7 +48,46 @@ body {
 .btn-danger { color: var(--red); border-color: #fecaca; }
 .btn-danger:hover { background: #fee2e2; }
 
-main { max-width: 1100px; margin: 0 auto; padding: 20px; display: flex; flex-direction: column; gap: 20px; }
+.layout { display: flex; align-items: flex-start; }
+main { flex: 1; min-width: 0; max-width: 1100px; margin: 0 auto; padding: 20px; display: flex; flex-direction: column; gap: 20px; }
+
+/* ── Sidebar ── */
+.sidebar {
+  width: 210px; flex-shrink: 0;
+  position: sticky; top: 52px; height: calc(100vh - 52px); overflow-y: auto;
+  background: var(--surface); border-right: 1px solid var(--border);
+  padding: 14px 10px; display: flex; flex-direction: column; gap: 2px;
+}
+.sidebar .section-label { padding: 0 8px; }
+.page-item {
+  display: flex; align-items: center; gap: 6px;
+  padding: 7px 8px; border-radius: 6px; cursor: pointer;
+  font-size: 13px; color: var(--text); user-select: none; touch-action: manipulation;
+}
+.page-item:hover { background: var(--bg); }
+.page-item.active { background: var(--accent-light); color: var(--accent); font-weight: 600; }
+.page-item .pname { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.page-item .pcount { font-size: 11px; color: var(--text-muted); font-weight: 400; }
+.page-item .pdel {
+  border: none; background: none; color: var(--text-muted); font-size: 15px; line-height: 1;
+  cursor: pointer; padding: 0 2px; visibility: hidden;
+}
+.page-item:hover .pdel { visibility: visible; }
+.page-item .pdel:hover { color: var(--red); }
+.page-edit {
+  flex: 1; min-width: 0; font: inherit; padding: 1px 4px;
+  border: 1px solid var(--accent); border-radius: 4px; color: var(--text);
+}
+.page-edit:focus { outline: none; }
+.page-add {
+  margin-top: 6px; padding: 7px 8px; border: 1px dashed var(--border); border-radius: 6px;
+  background: none; color: var(--text-muted); font: inherit; font-size: 13px; cursor: pointer; text-align: left;
+}
+.page-add:hover { color: var(--accent); border-color: var(--accent); }
+@media (max-width: 720px) {
+  .layout { flex-direction: column; align-items: stretch; }
+  .sidebar { width: auto; height: auto; position: static; border-right: none; border-bottom: 1px solid var(--border); }
+}
 
 .card {
   background: var(--surface); border: 1px solid var(--border);
@@ -178,9 +217,15 @@ input[type=color] {
 
 <div class="header">
   <h1>RGB Palette</h1>
-  <button class="btn btn-sm btn-danger" id="clearAll">Clear all</button>
+  <button class="btn btn-sm btn-danger" id="clearAll">Clear page</button>
 </div>
 
+<div class="layout">
+<aside class="sidebar">
+  <div class="section-label">Pages</div>
+  <div id="pages"></div>
+  <button class="page-add" id="addPage">+ New page</button>
+</aside>
 <main>
   <section class="card editor">
     <div class="preview" id="preview"></div>
@@ -211,13 +256,14 @@ input[type=color] {
 
   <section class="card">
     <div class="rows-head">
-      <h2>Saved colors</h2>
+      <h2 id="pageTitle"></h2>
       <span class="hint">Click a row to make it active · click a color to edit · drag to reorder</span>
       <button class="btn btn-sm" id="addRow">+ New row</button>
     </div>
     <div id="rows"></div>
   </section>
 </main>
+</div>
 
 <div class="toast" id="toast"></div>
 
@@ -256,17 +302,32 @@ const luminance = ([r, g, b]) => (0.299 * r + 0.587 * g + 0.114 * b) / 255;
 const textOn = rgb => luminance(rgb) > 0.6 ? '#1e293b' : '#ffffff';
 
 // ── State ──
-let state;
-try { state = JSON.parse(localStorage.getItem(KEY)); } catch {}
-if (!state || !Array.isArray(state.rows) || !state.rows.length) {
-  state = { rows: [{ name: 'Row 1', colors: [] }], active: 0, current: '#4F46E5' };
+const newPage = name => ({ name, rows: [{ name: 'Row 1', colors: [] }], active: 0 });
+let data;
+try { data = JSON.parse(localStorage.getItem(KEY)); } catch {}
+if (data && Array.isArray(data.rows)) { // before pages: a single list of rows
+  data = { pages: [{ name: 'Page 1', rows: data.rows, active: data.active || 0 }], page: 0, current: data.current };
 }
+if (!data || !Array.isArray(data.pages) || !data.pages.length) {
+  data = { pages: [newPage('Page 1')], page: 0, current: '#4F46E5' };
+}
+data.page = Math.min(data.page || 0, data.pages.length - 1);
 // colors used to be plain hex strings
-state.rows.forEach(row => { row.colors = row.colors.map(c => typeof c === 'string' ? { hex: c, name: '' } : c); });
+data.pages.forEach(p => p.rows.forEach(row => { row.colors = row.colors.map(c => typeof c === 'string' ? { hex: c, name: '' } : c); }));
+
+// `state` is a view of the current page, so row code doesn't need to know about pages
+const state = {
+  get rows() { return data.pages[data.page].rows; },
+  set rows(v) { data.pages[data.page].rows = v; },
+  get active() { return data.pages[data.page].active; },
+  set active(v) { data.pages[data.page].active = v; },
+  get current() { return data.current; },
+  set current(v) { data.current = v; },
+};
 let selected = null; // { row, idx }
 let rgb = parseHex(state.current) || [79, 70, 229];
 
-const save = () => { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch {} };
+const save = () => { try { localStorage.setItem(KEY, JSON.stringify(data)); } catch {} };
 
 function toast(msg) {
   const t = $('toast'); t.textContent = msg; t.classList.add('show');
@@ -366,9 +427,9 @@ $('addRow').onclick = () => {
   save(); renderRows();
 };
 $('clearAll').onclick = () => {
-  if (!confirm('Delete all rows and saved colors?')) return;
+  if (!confirm(`Delete all rows and colors in "${data.pages[data.page].name}"?`)) return;
   state.rows = [{ name: 'Row 1', colors: [] }]; state.active = 0; selected = null;
-  save(); renderRows(); renderEditor();
+  save(); renderAll();
 };
 
 let drag = null; // { row, idx }
@@ -495,7 +556,79 @@ function renderRows() {
     el.appendChild(sw);
     box.appendChild(el);
   });
+  updatePageCounts();
 }
+
+// ── Pages ──
+let editingPage = null;
+let lastPageTap = { i: null, t: 0 };
+
+const pageCount = page => page.rows.reduce((a, r) => a + r.colors.length, 0);
+// row edits change the sidebar counts; update them without rebuilding the sidebar
+function updatePageCounts() {
+  document.querySelectorAll('.page-item').forEach(el => {
+    const c = el.querySelector('.pcount');
+    if (c) c.textContent = pageCount(data.pages[+el.dataset.i]) || '';
+  });
+}
+
+function renderPages() {
+  const box = $('pages'); box.innerHTML = '';
+  data.pages.forEach((page, pi) => {
+    const el = document.createElement('div');
+    el.className = 'page-item' + (pi === data.page ? ' active' : '');
+    el.dataset.i = pi;
+    if (editingPage === pi) {
+      const inp = document.createElement('input');
+      inp.className = 'page-edit'; inp.value = page.name; inp.spellcheck = false;
+      let done = false;
+      const finish = keep => {
+        if (done) return; done = true;
+        if (keep && inp.value.trim()) { page.name = inp.value.trim(); save(); }
+        editingPage = null; renderPages(); renderRows();
+      };
+      inp.onclick = e => e.stopPropagation();
+      inp.onkeydown = e => { if (e.key === 'Enter') finish(true); else if (e.key === 'Escape') finish(false); };
+      inp.onblur = () => finish(true);
+      el.appendChild(inp);
+      requestAnimationFrame(() => { inp.focus(); inp.select(); });
+    } else {
+      const n = document.createElement('span'); n.className = 'pname'; n.textContent = page.name; n.title = page.name;
+      const count = pageCount(page);
+      const c = document.createElement('span'); c.className = 'pcount'; c.textContent = count || '';
+      el.append(n, c);
+      if (data.pages.length > 1) {
+        const x = document.createElement('button'); x.className = 'pdel'; x.textContent = '×'; x.title = 'Delete page';
+        x.onclick = e => {
+          e.stopPropagation();
+          if (count && !confirm(`Delete page "${page.name}" and its ${count} colors?`)) return;
+          data.pages.splice(pi, 1);
+          if (data.page >= pi && data.page > 0) data.page--;
+          selected = null; save(); renderAll();
+        };
+        el.appendChild(x);
+      }
+    }
+    el.onclick = () => {
+      if (editingPage === pi) return;
+      const now = Date.now();
+      if (lastPageTap.i === pi && now - lastPageTap.t < 400) { lastPageTap.i = null; editingPage = pi; renderPages(); return; }
+      lastPageTap = { i: pi, t: now };
+      if (data.page !== pi) { data.page = pi; selected = null; save(); renderAll(); }
+    };
+    box.appendChild(el);
+  });
+  $('pageTitle').textContent = data.pages[data.page].name;
+}
+
+$('addPage').onclick = () => {
+  data.pages.push(newPage('Page ' + (data.pages.length + 1)));
+  data.page = data.pages.length - 1;
+  editingPage = data.page; selected = null;
+  save(); renderAll();
+};
+
+function renderAll() { renderPages(); renderRows(); renderEditor(); }
 
 // clicking anywhere except a swatch or the editor clears the selection
 document.addEventListener('click', e => {
@@ -504,8 +637,7 @@ document.addEventListener('click', e => {
   renderRows(); renderEditor();
 });
 
-renderEditor();
-renderRows();
+renderAll();
 </script>
 </body>
 </html>
