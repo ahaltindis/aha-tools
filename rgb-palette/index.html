@@ -217,6 +217,7 @@ input[type=color] {
 
 <div class="header">
   <h1>RGB Palette</h1>
+  <button class="btn btn-sm" id="sharePage">Share page</button>
   <button class="btn btn-sm" id="importPage">Import page</button>
   <button class="btn btn-sm" id="exportPage">Export page</button>
   <input type="file" id="importFile" accept=".json,application/json" hidden>
@@ -631,7 +632,30 @@ $('addPage').onclick = () => {
   save(); renderAll();
 };
 
-// ── Import / export ──
+// ── Import / export / share ──
+// Files and share links are untrusted: rebuild the page from validated fields only.
+function sanitizePage(src, fallbackName) {
+  if (!src || !Array.isArray(src.rows)) throw new Error('no rows');
+  const str = v => typeof v === 'string' ? v : '';
+  const rows = src.rows.map((row, i) => ({
+    name: str(row?.name) || 'Row ' + (i + 1),
+    colors: (Array.isArray(row?.colors) ? row.colors : [])
+      .map(c => typeof c === 'string' ? { hex: c, name: '' } : { hex: str(c?.hex), name: str(c?.name) })
+      .filter(c => parseHex(c.hex)).map(c => ({ ...c, hex: toHex(parseHex(c.hex)) })),
+  }));
+  if (!rows.length) rows.push({ name: 'Row 1', colors: [] });
+  return { name: str(src.name).trim() || fallbackName, rows, active: 0 };
+}
+// Always adds a new page; a name that's already taken gets a " (2)", " (3)"… suffix.
+function addPage(page) {
+  const names = new Set(data.pages.map(p => p.name));
+  const base = page.name;
+  for (let n = 2; names.has(page.name); n++) page.name = `${base} (${n})`;
+  data.pages.push(page);
+  data.page = data.pages.length - 1; selected = null;
+  save(); renderAll(); toast('Added page "' + page.name + '"');
+}
+
 $('exportPage').onclick = () => {
   const page = data.pages[data.page];
   const blob = new Blob([JSON.stringify({ type: 'rgb-palette-page', version: 1, page }, null, 2)], { type: 'application/json' });
@@ -647,22 +671,77 @@ $('importFile').onchange = async e => {
   if (!file) return;
   try {
     const json = JSON.parse(await file.text());
-    const src = json.page || json;
-    if (!Array.isArray(src.rows)) throw new Error('no rows');
-    const rows = src.rows.map((row, i) => ({
-      name: String(row.name || 'Row ' + (i + 1)),
-      colors: (row.colors || []).map(c => typeof c === 'string' ? { hex: c, name: '' } : { hex: c.hex, name: String(c.name || '') })
-        .filter(c => parseHex(c.hex || '')).map(c => ({ ...c, hex: toHex(parseHex(c.hex)) })),
-    }));
-    if (!rows.length) rows.push({ name: 'Row 1', colors: [] });
-    // imports always open as a new page
-    data.pages.push({ name: String(src.name || file.name.replace(/\.json$/i, '')), rows, active: 0 });
-    data.page = data.pages.length - 1; selected = null;
-    save(); renderAll(); toast('Imported "' + data.pages[data.page].name + '"');
+    addPage(sanitizePage(json.page || json, file.name.replace(/\.json$/i, '')));
   } catch (err) {
     toast('Not a valid page file');
   }
 };
+
+// Share links carry the page in ?p=<version>.<base64url>:
+// v1 = deflate-raw compressed JSON, v0 = plain JSON for browsers without CompressionStream.
+const SHARE_PARAM = 'p';
+function toBase64Url(bytes) {
+  let bin = '';
+  for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+  return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+function fromBase64Url(str) {
+  const b64 = str.replace(/-/g, '+').replace(/_/g, '/');
+  return Uint8Array.from(atob(b64 + '='.repeat((4 - b64.length % 4) % 4)), c => c.charCodeAt(0));
+}
+const pipeBytes = async (bytes, stream) =>
+  new Uint8Array(await new Response(new Blob([bytes]).stream().pipeThrough(stream)).arrayBuffer());
+
+async function encodeShare(page) {
+  // compact form: [name, [[rowName, ["4F46E5", "FFFFFF:White", …]], …]]
+  const compact = [page.name, page.rows.map(r => [r.name, r.colors.map(c => c.hex.slice(1) + (c.name ? ':' + c.name : ''))])];
+  const json = new TextEncoder().encode(JSON.stringify(compact));
+  if (typeof CompressionStream === 'function') return '1.' + toBase64Url(await pipeBytes(json, new CompressionStream('deflate-raw')));
+  return '0.' + toBase64Url(json);
+}
+async function decodeShare(param) {
+  const dot = param.indexOf('.');
+  const ver = param.slice(0, dot), body = fromBase64Url(param.slice(dot + 1));
+  const bytes = ver === '1' ? await pipeBytes(body, new DecompressionStream('deflate-raw'))
+              : ver === '0' ? body : null;
+  if (!bytes) throw new Error('Unknown link version');
+  const [name, rows] = JSON.parse(new TextDecoder().decode(bytes));
+  if (!Array.isArray(rows)) throw new Error('no rows');
+  return sanitizePage({
+    name,
+    rows: rows.map(r => ({
+      name: r?.[0],
+      colors: (Array.isArray(r?.[1]) ? r[1] : []).map(c => {
+        const i = String(c).indexOf(':');
+        return i < 0 ? { hex: String(c), name: '' } : { hex: String(c).slice(0, i), name: String(c).slice(i + 1) };
+      }),
+    })),
+  }, 'Shared');
+}
+
+$('sharePage').onclick = async () => {
+  try {
+    const url = new URL(location.href);
+    url.search = ''; url.hash = '';
+    url.searchParams.set(SHARE_PARAM, await encodeShare(data.pages[data.page]));
+    const link = url.toString();
+    try { await navigator.clipboard.writeText(link); toast('Share link copied'); }
+    catch { prompt('Copy this link:', link); }
+  } catch (err) {
+    toast('Could not create share link');
+  }
+};
+
+async function loadFromShareLink() {
+  const param = new URLSearchParams(location.search).get(SHARE_PARAM);
+  if (!param) return;
+  // drop the param so a reload doesn't add the same page again
+  const clean = new URL(location.href);
+  clean.searchParams.delete(SHARE_PARAM);
+  history.replaceState(null, '', clean);
+  try { addPage(await decodeShare(param)); }
+  catch { alert('Could not open share link — it may be incomplete or corrupted.'); }
+}
 
 function renderAll() { renderPages(); renderRows(); renderEditor(); }
 
@@ -674,6 +753,7 @@ document.addEventListener('click', e => {
 });
 
 renderAll();
+loadFromShareLink();
 </script>
 </body>
 </html>
