@@ -451,6 +451,13 @@ function renderRows() {
   });
 }
 
+// clicking anywhere except a swatch or the editor clears the selection
+document.addEventListener('click', e => {
+  if (!selected || e.target.closest('.swatch, .editor')) return;
+  selected = null;
+  renderRows(); renderEditor();
+});
+
 renderEditor();
 renderRows();
 </script>
